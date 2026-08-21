@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>SHIGEGE MINI-GAMES | ハイパーカジュアルWebゲーム集</title>
+  <meta name="description" content="A・イシオ（@sigege）制作のハイパーカジュアルWebミニゲームポータル。積む積む、キャッチミーイフユーニャン、超人サッカー、闘犬乱舞、花のピョンピョン丸など全5作品がブラウザですぐに遊べます！">
+  <meta name="theme-color" content="#0a0a14">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&family=Orbitron:wght@600;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       CSS VARIABLES & RESET
+       ========================================================================== */
+    :root {
+      --bg-base: #06070d;
+      --bg-surface: rgba(18, 20, 36, 0.7);
+      --bg-surface-hover: rgba(28, 32, 58, 0.85);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(0, 242, 254, 0.3);
+      
+      --neon-cyan: #00f2fe;
+      --neon-blue: #4facfe;
+      --neon-pink: #ff007f;
+      --neon-purple: #9d4edd;
+      --neon-amber: #ff9f1c;
+      --neon-emerald: #00f5d4;
+      --neon-red: #ff3366;
+      
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --font-display: 'Orbitron', -apple-system, sans-serif;
+      --font-body: 'Plus Jakarta Sans', 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ==========================================================================
+       BACKGROUND & CYBER EFFECTS
+       ========================================================================== */
+    #particle-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .cyber-grid {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+      mask-image: radial-gradient(circle at center, black 40%, transparent 90%);
+      -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 90%);
+    }
+
+    .ambient-glow {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(140px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.25;
+      animation: floatGlow 14s infinite alternate ease-in-out;
+    }
+    .glow-1 {
+      top: -100px;
+      left: -100px;
+      background: radial-gradient(circle, var(--neon-cyan), transparent 70%);
+    }
+    .glow-2 {
+      bottom: 50px;
+      right: -100px;
+      background: radial-gradient(circle, var(--neon-pink), transparent 70%);
+      animation-duration: 18s;
+      animation-delay: -5s;
+    }
+
+    @keyframes floatGlow {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(60px, 40px) scale(1.15); }
+      100% { transform: translate(-40px, 80px) scale(0.9); }
+    }
+
+    /* ==========================================================================
+       CONTAINER & LAYOUT
+       ========================================================================== */
+    .app-container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    /* ==========================================================================
+       HEADER & NAVIGATION
+       ========================================================================== */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: rgba(15, 17, 30, 0.6);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      margin-bottom: 40px;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 50%, #9d4edd 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+      position: relative;
+    }
+
+    .brand-icon::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #00f2fe, #ff007f);
+      z-index: -1;
+      opacity: 0.6;
+      filter: blur(4px);
+    }
+
+    .brand-text h1 {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      background: linear-gradient(90deg, #ffffff, #c7d2fe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 0.75rem;
+      color: var(--neon-cyan);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .control-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: var(--font-body);
+    }
+
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--neon-cyan);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 242, 254, 0.25);
+    }
+
+    .control-btn:active {
+      transform: translateY(0);
+    }
+
+    /* ==========================================================================
+       HERO SECTION
+       ========================================================================== */
+    .hero {
+      text-align: center;
+      padding: 20px 10px 48px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 242, 254, 0.08);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      color: var(--neon-cyan);
+      padding: 6px 18px;
+      border-radius: 50px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.15);
+      animation: pulseBadge 3s infinite;
+    }
+
+    @keyframes pulseBadge {
+      0%, 100% { border-color: rgba(0, 242, 254, 0.3); box-shadow: 0 0 15px rgba(0, 242, 254, 0.15); }
+      50% { border-color: rgba(0, 242, 254, 0.7); box-shadow: 0 0 25px rgba(0, 242, 254, 0.35); }
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5.5vw, 3.8rem);
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: 0.04em;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    .hero-title .highlight {
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 40%, #ff007f 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 20px rgba(0, 242, 254, 0.3));
+    }
+
+    .hero-desc {
+      font-size: clamp(0.95rem, 2vw, 1.15rem);
+      color: var(--text-muted);
+      max-width: 680px;
+      margin: 0 auto 30px;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .btn-random {
+      background: linear-gradient(135deg, #ff007f, #9d4edd);
+      color: #fff;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 800;
+      padding: 12px 28px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 0.06em;
+      box-shadow: 0 4px 25px rgba(255, 0, 127, 0.4);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      text-decoration: none;
+    }
+
+    .btn-random:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 8px 35px rgba(255, 0, 127, 0.6);
+      filter: brightness(1.1);
+    }
+
+    /* ==========================================================================
+       SECTION TITLE & STATS
+       ========================================================================== */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 28px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 14px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 0.05em;
+    }
+
+    .section-title span {
+      color: var(--neon-cyan);
+    }
+
+    .game-count-badge {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      font-weight: 700;
+      font-family: var(--font-display);
+    }
+
+    /* ==========================================================================
+       GAME CARDS GRID & CENTERED FLEX LAYOUT
+       ========================================================================== */
+    .games-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 28px;
+      margin-bottom: 60px;
+    }
+
+    .game-card {
+      position: relative;
+      flex: 1 1 340px;
+      max-width: 380px;
+      min-width: 300px;
+      background: var(--bg-surface);
+      border-radius: 24px;
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    .game-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 24px;
+      padding: 1.5px;
+      background: linear-gradient(135deg, transparent, transparent, transparent);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+      transition: background 0.4s ease;
+    }
+
+    .game-card:hover {
+      transform: translateY(-8px) scale(1.015);
+      background: var(--bg-surface-hover);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), var(--card-glow);
+    }
+
+    /* Specific Theme Colors for each Card */
+    .card-tower {
+      --theme-color: #00f2fe;
+      --theme-gradient: linear-gradient(135deg, #00f2fe, #4facfe);
+      --card-glow: 0 0 35px rgba(0, 242, 254, 0.25);
+    }
+    .card-tower:hover::before {
+      background: linear-gradient(135deg, #00f2fe, #4facfe, transparent 70%);
+    }
+
+    .card-catch {
+      --theme-color: #ff007f;
+      --theme-gradient: linear-gradient(135deg, #ff007f, #ff758c);
+      --card-glow: 0 0 35px rgba(255, 0, 127, 0.25);
+    }
+    .card-catch:hover::before {
+      background: linear-gradient(135deg, #ff007f, #ff758c, transparent 70%);
+    }
+
+    .card-kicker {
+      --theme-color: #ff9f1c;
+      --theme-gradient: linear-gradient(135deg, #ff9f1c, #ff3366);
+      --card-glow: 0 0 35px rgba(255, 159, 28, 0.25);
+    }
+    .card-kicker:hover::before {
+      background: linear-gradient(135deg, #ff9f1c, #ff3366, transparent 70%);
+    }
+
+    .card-slash {
+      --theme-color: #ff3366;
+      --theme-gradient: linear-gradient(135deg, #ff3366, #9d4edd);
+      --card-glow: 0 0 35px rgba(255, 51, 102, 0.25);
+    }
+    .card-slash:hover::before {
+      background: linear-gradient(135deg, #ff3366, #9d4edd, transparent 70%);
+    }
+
+    .card-jump {
+      --theme-color: #a855f7;
+      --theme-gradient: linear-gradient(135deg, #a855f7, #ec4899);
+      --card-glow: 0 0 35px rgba(168, 85, 247, 0.25);
+    }
+    .card-jump:hover::before {
+      background: linear-gradient(135deg, #a855f7, #ec4899, transparent 70%);
+    }
+
+    /* Card Top / Visual Banner */
+    .card-visual {
+      position: relative;
+      height: 170px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.04) 0%, transparent 70%);
+    }
+
+    .visual-bg-glow {
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: var(--theme-color);
+      filter: blur(50px);
+      opacity: 0.25;
+      transition: all 0.4s ease;
+    }
+
+    .game-card:hover .visual-bg-glow {
+      opacity: 0.5;
+      transform: scale(1.3);
+    }
+
+    .game-main-emoji {
+      font-size: 5rem;
+      z-index: 1;
+      filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.4));
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: inline-block;
+      user-select: none;
+      animation: floatEmoji 4s ease-in-out infinite alternate;
+    }
+
+    .game-card:hover .game-main-emoji {
+      transform: scale(1.22) rotate(-5deg);
+    }
+
+    @keyframes floatEmoji {
+      0% { transform: translateY(0px); }
+      100% { transform: translateY(-8px); }
+    }
+
+    .card-index-tag {
+      position: absolute;
+      top: 14px;
+      left: 16px;
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: rgba(255, 255, 255, 0.4);
+      background: rgba(0, 0, 0, 0.35);
+      padding: 4px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      z-index: 2;
+    }
+
+    .control-badge {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      padding: 5px 12px;
+      border-radius: 50px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      z-index: 2;
+      letter-spacing: 0.03em;
+    }
+
+    /* Card Content */
+    .card-body {
+      padding: 20px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .card-title-group {
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-subtitle {
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      color: var(--theme-color);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .card-description {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 22px;
+      flex: 1;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+
+    .tag {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 3px 9px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-weight: 600;
+    }
+
+    /* Play Button */
+    .btn-play {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 13px 20px;
+      background: var(--theme-gradient);
+      color: #fff;
+      text-decoration: none;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-play::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(
+        60deg,
+        transparent,
+        rgba(255, 255, 255, 0.25),
+        transparent
+      );
+      transform: translateX(-100%);
+      transition: transform 0.6s ease;
+    }
+
+    .btn-play:hover::after {
+      transform: translateX(100%);
+    }
+
+    .btn-play:hover {
+      filter: brightness(1.15);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--card-glow);
+    }
+
+    .btn-play:active {
+      transform: translateY(1px);
+    }
+
+    /* ==========================================================================
+       FEATURES / STATS SECTION
+       ========================================================================== */
+    .features-section {
+      background: rgba(15, 17, 30, 0.5);
+      border: 1px solid var(--border-subtle);
+      border-radius: 24px;
+      padding: 32px 28px;
+      margin-bottom: 60px;
+      backdrop-filter: blur(12px);
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
+      text-align: center;
+    }
+
+    .feature-item {
+      padding: 10px;
+    }
+
+    .feature-icon {
+      font-size: 2.2rem;
+      margin-bottom: 10px;
+      display: inline-block;
+    }
+
+    .feature-title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .feature-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       FOOTER
+       ========================================================================== */
+    footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 40px 20px 20px;
+      text-align: center;
+      margin-top: auto;
+      background: rgba(8, 10, 18, 0.8);
+    }
+
+    .footer-content {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .creator-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      padding: 10px 20px;
+      border-radius: 50px;
+      font-size: 0.9rem;
+    }
+
+    .creator-avatar {
+      font-size: 1.4rem;
+    }
+
+    .creator-name {
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .creator-handle {
+      color: var(--neon-cyan);
+      font-family: var(--font-display);
+      font-weight: 700;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .creator-handle:hover {
+      color: #fff;
+      text-shadow: 0 0 10px var(--neon-cyan);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .footer-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .footer-link:hover {
+      color: var(--neon-cyan);
+    }
+
+    .footer-copyright {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      margin-top: 10px;
+      letter-spacing: 0.05em;
+    }
+
+    /* ==========================================================================
+       RESPONSIVE DESIGN
+       ========================================================================== */
+    @media (max-width: 768px) {
+      .app-container {
+        padding: 16px 14px 40px;
+      }
+      header {
+        padding: 12px 16px;
+        margin-bottom: 28px;
+      }
+      .brand-text h1 {
+        font-size: 1rem;
+      }
+      .hero {
+        padding: 10px 0 36px;
+      }
+      .games-grid {
+        gap: 22px;
+      }
+      .game-card {
+        flex: 1 1 100%;
+        max-width: 100%;
+      }
+      .card-visual {
+        height: 150px;
+      }
+      .game-main-emoji {
+        font-size: 4.2rem;
+      }
+      .card-body {
+        padding: 18px 20px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Cyber Grid Background -->
+  <div class="cyber-grid"></div>
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <canvas id="particle-canvas"></canvas>
+
+  <div class="app-container">
+
+    <!-- Header / Navigation -->
+    <header>
+      <a href="#" class="brand-logo" title="SHIGEGE MINI-GAMES">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-text">
+          <h1>SHIGEGE MINI-GAMES</h1>
+          <p data-i18n="header-tag">Hyper-Casual Web Games</p>
+        </div>
+      </a>
+
+      <div class="nav-controls">
+        <button id="sound-btn" class="control-btn" aria-label="Toggle Sound" title="Sound Toggle">
+          <span id="sound-icon">🔊</span>
+          <span id="sound-label" data-i18n="sound-on">SFX ON</span>
+        </button>
+
+        <button id="lang-btn" class="control-btn" aria-label="Switch Language" title="Language Switch">
+          <span id="lang-flag">🇺🇸</span>
+          <span id="lang-label">ENGLISH</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-badge" data-i18n="hero-badge">✨ 5 Playable Hyper-Casual Games</div>
+      <h2 class="hero-title">
+        <span data-i18n="hero-title-1">Play Fast,</span> <br>
+        <span class="highlight" data-i18n="hero-title-2">Feel The Rush.</span>
+      </h2>
+      <p class="hero-desc" data-i18n="hero-desc">
+        インストール不要・ブラウザで今すぐ遊べる爽快カジュアルゲームコレクション。極上の手触りと直感操作でハイスコアを叩き出せ！
+      </p>
+      <div class="hero-actions">
+        <button id="btn-random-play" class="btn-random" data-i18n="btn-random">
+          🎲 RANDOM PLAY / ランダムで遊ぶ
+        </button>
+      </div>
+    </section>
+
+    <!-- Games Collection Header -->
+    <div class="section-header">
+      <div class="section-title">
+        <span data-i18n="sec-title">🎮 ALL GAMES</span>
+      </div>
+      <div class="game-count-badge" data-i18n="game-count">5 TITLES AVAILABLE</div>
+    </div>
+
+    <!-- Games Grid (5 Games, Centered & Balanced) -->
+    <div class="games-grid">
+
+      <!-- 01: 積む積む (01-stack-tower) -->
+      <article class="game-card card-tower" data-url="./01-stack-tower/index.html">
+        <div class="card-visual">
+          <span class="card-index-tag">#01</span>
+          <span class="control-badge">👆 <span data-i18n="g1-control">TAP TIMING</span></span>
+          <div class="visual-bg-glow"></div>
+          <span class="game-main-emoji">📦</span>
+        </div>
+        <div class="card-body">
+          <div class="card-title-group">
+            <h3 class="card-title" data-i18n="g1-title">積む積む</h3>
+            <span class="card-subtitle">STACK TOWER</span>
+          </div>
+          <p class="card-description" data-i18n="g1-desc">
+            タイミングよく画面をタップしてブロックを積み重ねろ！ズレた部分はカットされるスリリングなタワービルディング。
+          </p>
+          <div class="card-tags">
+            <span class="tag">#Timing</span>
+            <span class="tag">#Stack</span>
+            <span class="tag">#Infinite</span>
+          </div>
+          <a href="./01-stack-tower/index.html" class="btn-play">
+            <span data-i18n="btn-play">PLAY NOW</span> 🎮
+          </a>
+        </div>
+      </article>
+
+      <!-- 02: キャッチミーイフユーニャン (02-catch-game) -->
+      <article class="game-card card-catch" data-url="./02-catch-game/index.html">
+        <div class="card-visual">
+          <span class="card-index-tag">#02</span>
+          <span class="control-badge">↔️ <span data-i18n="g2-control">DRAG / SLIDE</span></span>
+          <div class="visual-bg-glow"></div>
+          <span class="game-main-emoji">😺</span>
+        </div>
+        <div class="card-body">
+          <div class="card-title-group">
+            <h3 class="card-title" data-i18n="g2-title">キャッチミーイフユーニャン</h3>
+            <span class="card-subtitle">CATCH ME IF YOU NYAN</span>
+          </div>
+          <p class="card-description" data-i18n="g2-desc">
+            落ちてくるアイテムをバスケットでキャッチ！爆弾を回避しつつコンボを繋いでフィーバー突入を目指せ！
+          </p>
+          <div class="card-tags">
+            <span class="tag">#Catch</span>
+            <span class="tag">#CuteCat</span>
+            <span class="tag">#Combo</span>
+          </div>
+          <a href="./02-catch-game/index.html" class="btn-play">
+            <span data-i18n="btn-play">PLAY NOW</span> 🎮
+          </a>
+        </div>
+      </article>
+
+      <!-- 03: 超人サッカー (03-space-kicker) -->
+      <article class="game-card card-kicker" data-url="./03-space-kicker/index.html">
+        <div class="card-visual">
+          <span class="card-index-tag">#03</span>
+          <span class="control-badge">🎯 <span data-i18n="g3-control">AIM & SHOT</span></span>
+          <div class="visual-bg-glow"></div>
+          <span class="game-main-emoji">⚽</span>
+        </div>
+        <div class="card-body">
+          <div class="card-title-group">
+            <h3 class="card-title" data-i18n="g3-title">超人サッカー</h3>
+            <span class="card-subtitle">SPACE KICKER</span>
+          </div>
+          <p class="card-description" data-i18n="g3-desc">
+            狙いを定めて超絶シュートを放て！立ちはだかるディフェンスとキーパーの鉄壁ガードを粉砕する痛快サッカーアクション。
+          </p>
+          <div class="card-tags">
+            <span class="tag">#Soccer</span>
+            <span class="tag">#SuperPower</span>
+            <span class="tag">#Action</span>
+          </div>
+          <a href="./03-space-kicker/index.html" class="btn-play">
+            <span data-i18n="btn-play">PLAY NOW</span> 🎮
+          </a>
+        </div>
+      </article>
+
+      <!-- 04: 闘犬乱舞 (04-emoji-slash) -->
+      <article class="game-card card-slash" data-url="./04-emoji-slash/index.html">
+        <div class="card-visual">
+          <span class="card-index-tag">#04</span>
+          <span class="control-badge">⚡ <span data-i18n="g4-control">SWIPE SLASH</span></span>
+          <div class="visual-bg-glow"></div>
+          <span class="game-main-emoji">🐶</span>
+        </div>
+        <div class="card-body">
+          <div class="card-title-group">
+            <h3 class="card-title" data-i18n="g4-title">闘犬乱舞</h3>
+            <span class="card-subtitle">EMOJI SLASH</span>
+          </div>
+          <p class="card-description" data-i18n="g4-desc">
+            画面を高速スワイプして飛来するターゲットを一刀両断！連続スラッシュとクリティカルで最高スコアを刻め！
+          </p>
+          <div class="card-tags">
+            <span class="tag">#Slash</span>
+            <span class="tag">#SwordAction</span>
+            <span class="tag">#Speed</span>
+          </div>
+          <a href="./04-emoji-slash/index.html" class="btn-play">
+            <span data-i18n="btn-play">PLAY NOW</span> 🎮
+          </a>
+        </div>
+      </article>
+
+      <!-- 05: 花のピョンピョン丸 (05-jump-ninja) -->
+      <article class="game-card card-jump" data-url="./05-jump-ninja/index.html">
+        <div class="card-visual">
+          <span class="card-index-tag">#05</span>
+          <span class="control-badge">⏱️ <span data-i18n="g5-control">HOLD & CHARGE</span></span>
+          <div class="visual-bg-glow"></div>
+          <span class="game-main-emoji">🌸</span>
+        </div>
+        <div class="card-body">
+          <div class="card-title-group">
+            <h3 class="card-title" data-i18n="g5-title">花のピョンピョン丸</h3>
+            <span class="card-subtitle">PYONPYON NINJA</span>
+          </div>
+          <p class="card-description" data-i18n="g5-desc">
+            長押しでジャンプパワーをチャージ！絶妙な目測と度胸で次なる足場へ飛び移る2.5Dジャンプアクション。
+          </p>
+          <div class="card-tags">
+            <span class="tag">#ChargeJump</span>
+            <span class="tag">#DistanceSense</span>
+            <span class="tag">#Precision</span>
+          </div>
+          <a href="./05-jump-ninja/index.html" class="btn-play">
+            <span data-i18n="btn-play">PLAY NOW</span> 🎮
+          </a>
+        </div>
+      </article>
+
+    </div>
+
+    <!-- Features Section -->
+    <section class="features-section">
+      <div class="features-grid">
+        <div class="feature-item">
+          <div class="feature-icon">⚡</div>
+          <h4 class="feature-title" data-i18n="feat1-t">ZERO INSTALL</h4>
+          <p class="feature-desc" data-i18n="feat1-d">ブラウザを開くだけで即起動。スマホ・PC両対応。</p>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">👆</div>
+          <h4 class="feature-title" data-i18n="feat2-t">ONE-TOUCH PLAY</h4>
+          <p class="feature-desc" data-i18n="feat2-d">直感操作で誰でも1秒でルール理解＆熱中。</p>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🏆</div>
+          <h4 class="feature-title" data-i18n="feat3-t">HIGH SCORE</h4>
+          <p class="feature-desc" data-i18n="feat3-d">自己ベスト更新を目指すやり込み系ゲーム満載。</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-content">
+      <div class="creator-box">
+        <span class="creator-avatar">👾</span>
+        <span class="creator-name" data-i18n="creator-label">Created by A・イシオ</span>
+        <a href="https://github.com/sigege" target="_blank" rel="noopener noreferrer" class="creator-handle">@sigege</a>
+      </div>
+
+      <div class="footer-links">
+        <a href="https://github.com/sigege" target="_blank" rel="noopener noreferrer" class="footer-link">
+          <span>🐙</span> GitHub Profile
+        </a>
+        <a href="./01-stack-tower/index.html" class="footer-link">📦 01 Stack Tower</a>
+        <a href="./02-catch-game/index.html" class="footer-link">😺 02 Catch Me</a>
+        <a href="./03-space-kicker/index.html" class="footer-link">⚽ 03 Space Kicker</a>
+        <a href="./04-emoji-slash/index.html" class="footer-link">🐶 04 Emoji Slash</a>
+        <a href="./05-jump-ninja/index.html" class="footer-link">🌸 05 Pyonpyon Ninja</a>
+      </div>
+
+      <p class="footer-copyright">
+        &copy; 2026 SHIGEGE MINI-GAMES. All rights reserved. Powered by HTML5 &amp; Phaser.
+      </p>
+    </div>
+  </footer>
+
+  <!-- Interactive JavaScript & Audio Synthesizer -->
+  <script>
+    (function () {
+      'use strict';
+
+      /* ==========================================================================
+         TRANSLATION DATA (JA / EN)
+         ========================================================================== */
+      const translations = {
+        ja: {
+          "header-tag": "ハイパーカジュアルWebゲーム集",
+          "sound-on": "SFX ON",
+          "sound-off": "SFX OFF",
+          "hero-badge": "✨ 全5作品のカジュアルWebゲーム",
+          "hero-title-1": "サクッと遊べて、",
+          "hero-title-2": "ドハマりする爽快感。",
+          "hero-desc": "インストール不要・ブラウザで今すぐ遊べる爽快カジュアルゲームコレクション。極上の手触りと直感操作でハイスコアを叩き出せ！",
+          "btn-random": "🎲 ランダムで遊ぶ / PLAY RANDOM",
+          "sec-title": "🎮 ゲーム一覧",
+          "game-count": "全5作品 プレイ可能",
+          "btn-play": "PLAY NOW",
+          "creator-label": "Created by A・イシオ",
+          "feat1-t": "インストール不要",
+          "feat1-d": "ブラウザを開くだけで即起動。スマホ・PC両対応。",
+          "feat2-t": "ワンタッチ直感操作",
+          "feat2-d": "直感操作で誰でも1秒でルール理解＆熱中。",
+          "feat3-t": "ハイスコア挑戦",
+          "feat3-d": "自己ベスト更新を目指すやり込み系ゲーム満載。",
+          
+          /* Game 1 */
+          "g1-title": "積む積む",
+          "g1-control": "タップタイミング",
+          "g1-desc": "タイミングよく画面をタップしてブロックを積み重ねろ！ズレた部分はカットされるスリリングなタワービルディング。",
+
+          /* Game 2 */
+          "g2-title": "キャッチミーイフユーニャン",
+          "g2-control": "左右ドラッグ",
+          "g2-desc": "落ちてくるアイテムをバスケットでキャッチ！爆弾を回避しつつコンボを繋いでフィーバー突入を目指せ！",
+
+          /* Game 3 */
+          "g3-title": "超人サッカー",
+          "g3-control": "狙い撃ち＆連射",
+          "g3-desc": "狙いを定めて超絶シュートを放て！立ちはだかるディフェンスとキーパーの鉄壁ガードを粉砕する痛快サッカーアクション。",
+
+          /* Game 4 */
+          "g4-title": "闘犬乱舞",
+          "g4-control": "スワイプ一筆両断",
+          "g4-desc": "画面を高速スワイプして飛来するターゲットを一刀両断！連続スラッシュとクリティカルで最高スコアを刻め！",
+
+          /* Game 5 */
+          "g5-title": "花のピョンピョン丸",
+          "g5-control": "長押しチャージ",
+          "g5-desc": "長押しでジャンプパワーをチャージ！絶妙な目測と度胸で次なる足場へ飛び移る2.5Dジャンプアクション。"
+        },
+        en: {
+          "header-tag": "Hyper-Casual Web Games",
+          "sound-on": "SFX ON",
+          "sound-off": "SFX OFF",
+          "hero-badge": "✨ 5 PLAYABLE CASUAL WEB GAMES",
+          "hero-title-1": "Play Fast,",
+          "hero-title-2": "Feel The Rush.",
+          "hero-desc": "Zero installation needed. Jump into instant browser action with hyper-responsive controls and beat your personal bests!",
+          "btn-random": "🎲 RANDOM PLAY",
+          "sec-title": "🎮 ALL GAMES",
+          "game-count": "5 TITLES AVAILABLE",
+          "btn-play": "PLAY NOW",
+          "creator-label": "Created by A. Ishio",
+          "feat1-t": "ZERO INSTALL",
+          "feat1-d": "Instant play in any modern browser on Mobile & Desktop.",
+          "feat2-t": "ONE-TOUCH PLAY",
+          "feat2-d": "Instant intuitive controls, easy to learn, hard to master.",
+          "feat3-t": "HIGH SCORE CHASE",
+          "feat3-d": "Addictive arcade loops designed to push your reflexes.",
+
+          /* Game 1 */
+          "g1-title": "Stack Tower",
+          "g1-control": "TAP TIMING",
+          "g1-desc": "Tap precisely at the right moment to stack moving blocks and construct an infinite skyscraper without falling!",
+
+          /* Game 2 */
+          "g2-title": "Catch Me If You Nyan",
+          "g2-control": "DRAG / SLIDE",
+          "g2-desc": "Catch delicious items with your basket, dodge hazardous bombs, and trigger fever mode for maximum combo score!",
+
+          /* Game 3 */
+          "g3-title": "Space Kicker",
+          "g3-control": "AIM & SHOT",
+          "g3-desc": "Unleash devastating curve shots past agile defenders and smash through galactic goalkeepers!",
+
+          /* Game 4 */
+          "g4-title": "Emoji Slash",
+          "g4-control": "SWIPE SLASH",
+          "g4-desc": "Swipe like lightning to slice through incoming flying targets with high-speed critical strike combos!",
+
+          /* Game 5 */
+          "g5-title": "Pyonpyon Ninja",
+          "g5-control": "HOLD & CHARGE",
+          "g5-desc": "Hold to charge jumping energy and leap across platforms with precision distance judgment and bravery!"
+        }
+      };
+
+      /* ==========================================================================
+         SYNTHESIZED SOUND EFFECTS (Web Audio API - Zero Asset)
+         ========================================================================== */
+      let audioCtx = null;
+      let soundEnabled = true;
+
+      function getAudioContext() {
+        if (!audioCtx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) audioCtx = new AudioContext();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        return audioCtx;
+      }
+
+      function playSound(type) {
+        if (!soundEnabled) return;
+        try {
+          const ctx = getAudioContext();
+          if (!ctx) return;
+
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          if (type === 'hover') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(420, now);
+            osc.frequency.exponentialRampToValueAtTime(780, now + 0.06);
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.06);
+            osc.start(now);
+            osc.stop(now + 0.06);
+          } else if (type === 'click') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(580, now);
+            osc.frequency.exponentialRampToValueAtTime(1100, now + 0.12);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.12);
+            osc.start(now);
+            osc.stop(now + 0.12);
+          } else if (type === 'warp') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.2);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.25);
+            osc.start(now);
+            osc.stop(now + 0.25);
+          }
+        } catch (e) {
+          // Audio autoplay policies or error catch
+        }
+      }
+
+      /* ==========================================================================
+         LANGUAGE TOGGLE LOGIC
+         ========================================================================== */
+      let currentLang = localStorage.getItem('shigege_portal_lang') || 'ja';
+
+      function updateLanguage(lang) {
+        currentLang = lang;
+        localStorage.setItem('shigege_portal_lang', lang);
+        document.documentElement.lang = lang;
+
+        const langData = translations[lang] || translations.ja;
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          if (langData[key]) {
+            el.textContent = langData[key];
+          }
+        });
+
+        // Update Toggle Button UI
+        const langFlag = document.getElementById('lang-flag');
+        const langLabel = document.getElementById('lang-label');
+        if (lang === 'ja') {
+          langFlag.textContent = '🇺🇸';
+          langLabel.textContent = 'ENGLISH';
+        } else {
+          langFlag.textContent = '🇯🇵';
+          langLabel.textContent = '日本語';
+        }
+
+        // Update sound label
+        const soundLabel = document.getElementById('sound-label');
+        soundLabel.textContent = soundEnabled ? langData['sound-on'] : langData['sound-off'];
+      }
+
+      const langBtn = document.getElementById('lang-btn');
+      langBtn.addEventListener('click', () => {
+        playSound('click');
+        const nextLang = currentLang === 'ja' ? 'en' : 'ja';
+        updateLanguage(nextLang);
+      });
+
+      // Sound Toggle Button
+      const soundBtn = document.getElementById('sound-btn');
+      const soundIcon = document.getElementById('sound-icon');
+      const soundLabel = document.getElementById('sound-label');
+
+      soundBtn.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        soundIcon.textContent = soundEnabled ? '🔊' : '🔇';
+        const langData = translations[currentLang] || translations.ja;
+        soundLabel.textContent = soundEnabled ? langData['sound-on'] : langData['sound-off'];
+        if (soundEnabled) playSound('click');
+      });
+
+      /* ==========================================================================
+         RANDOM PLAY BUTTON
+         ========================================================================== */
+      const gameUrls = [
+        './01-stack-tower/index.html',
+        './02-catch-game/index.html',
+        './03-space-kicker/index.html',
+        './04-emoji-slash/index.html',
+        './05-jump-ninja/index.html'
+      ];
+
+      const btnRandom = document.getElementById('btn-random-play');
+      btnRandom.addEventListener('click', () => {
+        playSound('warp');
+        const randomIndex = Math.floor(Math.random() * gameUrls.length);
+        btnRandom.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          window.location.href = gameUrls[randomIndex];
+        }, 220);
+      });
+
+      /* ==========================================================================
+         CARD SOUNDS & INTERACTION
+         ========================================================================== */
+      document.querySelectorAll('.game-card').forEach(card => {
+        card.addEventListener('mouseenter', () => {
+          playSound('hover');
+        });
+      });
+
+      document.querySelectorAll('.btn-play, .control-btn').forEach(btn => {
+        btn.addEventListener('mouseenter', () => {
+          playSound('hover');
+        });
+        btn.addEventListener('click', () => {
+          playSound('click');
+        });
+      });
+
+      /* ==========================================================================
+         CYBER PARTICLES CANVAS ANIMATION
+         ========================================================================== */
+      const canvas = document.getElementById('particle-canvas');
+      const ctx = canvas.getContext('2d');
+      let width = (canvas.width = window.innerWidth);
+      let height = (canvas.height = window.innerHeight);
+
+      window.addEventListener('resize', () => {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+      });
+
+      const particleColors = ['#00f2fe', '#4facfe', '#ff007f', '#9d4edd', '#ff9f1c'];
+      const particles = [];
+      const PARTICLE_COUNT = Math.min(40, Math.floor(window.innerWidth / 30));
+
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          radius: Math.random() * 2 + 1,
+          color: particleColors[Math.floor(Math.random() * particleColors.length)],
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4 - 0.2,
+          alpha: Math.random() * 0.6 + 0.2,
+          pulseSpeed: Math.random() * 0.02 + 0.01
+        });
+      }
+
+      function renderParticles() {
+        ctx.clearRect(0, 0, width, height);
+
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+
+          if (p.x < 0) p.x = width;
+          if (p.x > width) p.x = 0;
+          if (p.y < 0) p.y = height;
+          if (p.y > height) p.y = 0;
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = p.alpha;
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = p.color;
+          ctx.fill();
+
+          // Connect close particles
+          for (let j = i + 1; j < particles.length; j++) {
+            const p2 = particles[j];
+            const dx = p.x - p2.x;
+            const dy = p.y - p2.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 110) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = p.color;
+              ctx.globalAlpha = (1 - dist / 110) * 0.15;
+              ctx.lineWidth = 0.8;
+              ctx.stroke();
+            }
+          }
+        }
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+
+        requestAnimationFrame(renderParticles);
+      }
+
+      renderParticles();
+
+      // Initialize initial language
+      updateLanguage(currentLang);
+
+    })();
+  </script>
+</body>
+</html>

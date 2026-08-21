@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>花のピョンピョン丸 | 2.5D長押しジャンプアクション</title>
+  <meta name="description" content="ミリ単位の目測と度胸試し！画面長押しでパワーを溜めて、ビルの屋上へ飛び移る爽快ジャンプアクションゲーム『花のピョンピョン丸』。">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  
+  <!-- Phaser 3 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #060814;
+      font-family: 'M PLUS Rounded 1c', sans-serif;
+      touch-action: none;
+    }
+
+    #game-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+    }
+
+    /* UI Overlay Layer */
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 20px;
+      z-index: 10;
+    }
+
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 540px;
+      margin: 0 auto;
+      pointer-events: auto;
+    }
+
+    .score-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: absolute;
+      left: 50%;
+      top: 24px;
+      transform: translateX(-50%);
+    }
+
+    .current-score {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 60px;
+      font-weight: 900;
+      color: #ffffff;
+      text-shadow: 0 0 25px rgba(255, 105, 180, 0.9), 0 0 50px rgba(0, 240, 255, 0.6), 0 4px 10px rgba(0, 0, 0, 0.8);
+      line-height: 1;
+      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .combo-badge-hud {
+      font-size: 14px;
+      font-weight: 900;
+      color: #ffd700;
+      background: rgba(255, 20, 147, 0.8);
+      padding: 3px 12px;
+      border-radius: 12px;
+      margin-top: 4px;
+      opacity: 0;
+      transform: scale(0.8);
+      transition: all 0.2s ease;
+      box-shadow: 0 0 15px rgba(255, 20, 147, 0.6);
+    }
+
+    .combo-badge-hud.active {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .high-score-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(18, 24, 52, 0.85);
+      border: 1.5px solid rgba(255, 215, 0, 0.45);
+      border-radius: 24px;
+      padding: 7px 16px;
+      color: #ffd700;
+      font-size: 14px;
+      font-weight: 900;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    }
+
+    .btn-icon {
+      background: rgba(18, 24, 52, 0.85);
+      border: 1.5px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      width: 46px;
+      height: 46px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    }
+
+    .btn-icon:active {
+      transform: scale(0.9);
+      background: rgba(255, 105, 180, 0.3);
+    }
+
+    /* Modal Overlay (Game Over / Title) */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(4, 6, 16, 0.85);
+      backdrop-filter: blur(12px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: auto;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      z-index: 20;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .card {
+      background: linear-gradient(145deg, rgba(32, 24, 56, 0.95), rgba(12, 14, 34, 0.95));
+      border: 2px solid rgba(255, 105, 180, 0.45);
+      border-radius: 32px;
+      padding: 38px 28px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 40px rgba(255, 105, 180, 0.25);
+      transform: translateY(20px) scale(0.95);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .modal-overlay.active .card {
+      transform: translateY(0) scale(1);
+    }
+
+    .card-title {
+      font-size: 34px;
+      font-weight: 900;
+      color: #ffffff;
+      text-shadow: 0 0 20px rgba(255, 105, 180, 0.8), 0 0 35px rgba(255, 215, 0, 0.6);
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+    }
+
+    .card-subtitle {
+      font-size: 14px;
+      color: #b5c7ec;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .stats-box {
+      background: rgba(8, 12, 28, 0.75);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 10px 0;
+    }
+
+    .stat-label {
+      color: #8fa2ce;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .stat-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 28px;
+      font-weight: 900;
+      color: #ffffff;
+    }
+
+    .stat-value.highlight {
+      color: #ffd700;
+      text-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+    }
+
+    .btn-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 17px;
+      border-radius: 18px;
+      border: none;
+      font-family: 'M PLUS Rounded 1c', sans-serif;
+      font-size: 19px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+      margin-bottom: 12px;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #ff2a8d, #ff758c);
+      color: #ffffff;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.96);
+      box-shadow: 0 4px 12px rgba(255, 42, 141, 0.4);
+    }
+
+    .btn-share {
+      background: #000000;
+      color: #ffffff;
+      border: 1.5px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-share:active {
+      transform: scale(0.96);
+      background: #1c1c1c;
+    }
+
+    .new-record-tag {
+      display: inline-block;
+      background: linear-gradient(90deg, #ffd700, #ff5e00);
+      color: #000;
+      font-size: 11px;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 10px;
+      margin-left: 6px;
+      animation: pulse 1s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.15); }
+    }
+
+    /* Floating Toasts */
+    .toast-popup {
+      position: absolute;
+      top: 23%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      pointer-events: none;
+      z-index: 15;
+      text-align: center;
+      line-height: 1.1;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .toast-popup.perfect {
+      color: #ffd700;
+      font-size: 38px;
+      text-shadow: 0 0 25px rgba(255, 215, 0, 1), 0 0 50px rgba(255, 20, 147, 0.9);
+    }
+
+    .toast-popup.assist {
+      color: #00f0ff;
+      font-size: 26px;
+      text-shadow: 0 0 20px rgba(0, 240, 255, 0.9);
+    }
+
+    .toast-popup.show {
+      transform: translate(-50%, -50%) scale(1.2);
+      opacity: 1;
+    }
+
+    .toast-popup .sub-text {
+      font-size: 24px;
+      color: #ff3388;
+      display: block;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <!-- UI Layer -->
+  <div id="ui-layer">
+    <div class="hud-header">
+      <div class="high-score-badge">
+        <span>👑 BEST:</span>
+        <span id="best-score-display">0</span>
+      </div>
+      <div class="btn-icon" id="btn-sound" title="サウンド切替">🔊</div>
+    </div>
+    <div class="score-container">
+      <div class="current-score" id="score-display">0</div>
+      <div class="combo-badge-hud" id="combo-hud">COMBO x2</div>
+    </div>
+  </div>
+
+  <!-- Floating Popup Toast -->
+  <div id="toast-popup" class="toast-popup perfect">
+    <div id="toast-main">🌸 PERFECT! 🌸</div>
+    <span class="sub-text" id="toast-sub">+2</span>
+  </div>
+
+  <!-- Title Modal -->
+  <div class="modal-overlay active" id="modal-title">
+    <div class="card">
+      <div style="font-size: 54px; margin-bottom: 8px;">🌸🥷🏯</div>
+      <h1 class="card-title">花のピョンピョン丸</h1>
+      <p class="card-subtitle">
+        ミリ単位の目測と度胸試し！<br>
+        画面長押しでパワーを溜めて、ビルの屋上へ飛び移れ！
+      </p>
+      <div class="stats-box" style="text-align: left; font-size: 13.5px; color: #b5c7ec; line-height: 1.9;">
+        <div>👆 <b>画面長押し</b> : パワーチャージ（グググ…）</div>
+        <div>🚀 <b>指を離す</b> : 放物線大ジャンプ！</div>
+        <div>🎯 <b>中心に着地</b> : PERFECT＆コンボ倍率UP！</div>
+        <div>🌸 <b>ギリギリ着地</b> : アシスト吸い込みでセーフ！</div>
+      </div>
+      <button class="btn-action btn-primary" id="btn-start">
+        <span>修行を開始する</span> 🌸⚔️
+      </button>
+    </div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div class="modal-overlay" id="modal-gameover">
+    <div class="card">
+      <div style="font-size: 48px; margin-bottom: 6px;">🌸💀</div>
+      <h2 class="card-title" style="color: #ff4757; text-shadow: 0 0 20px rgba(255, 71, 87, 0.7);">散 り 御 免</h2>
+      <p class="card-subtitle">谷底へと花吹雪とともに散っていった…</p>
+      <div class="stats-box">
+        <div class="stat-row">
+          <span class="stat-label">獲得スコア</span>
+          <span class="stat-value" id="final-score">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">最大コンボ</span>
+          <span class="stat-value" id="max-combo-stat">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">ハイスコア</span>
+          <span class="stat-value highlight" id="modal-best-score">0</span>
+        </div>
+      </div>
+      <button class="btn-action btn-primary" id="btn-retry">
+        <span>もう一度跳ぶ</span> 🔄
+      </button>
+      <a class="btn-action btn-share" id="btn-share" target="_blank" rel="noopener noreferrer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 24.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        <span>結果をXでシェア</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   Web Audio API - Zero Asset Procedural Audio Synthesizer
+   ========================================================================== */
+class SoundManager {
+  constructor() {
+    this.ctx = null;
+    this.enabled = true;
+    this.chargeOsc = null;
+    this.chargeGain = null;
+  }
+
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  toggle() {
+    this.enabled = !this.enabled;
+    if (!this.enabled && this.chargeOsc) {
+      this.stopCharge();
+    }
+    return this.enabled;
+  }
+
+  // チャージ音: ピッチがグググ…と滑らかに上昇するノコギリ波シンセ
+  startCharge() {
+    if (!this.enabled || !this.ctx) return;
+    this.stopCharge();
+
+    const now = this.ctx.currentTime;
+    this.chargeOsc = this.ctx.createOscillator();
+    this.chargeGain = this.ctx.createGain();
+    
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(680, now);
+
+    this.chargeOsc.type = 'sawtooth';
+    this.chargeOsc.frequency.setValueAtTime(140, now);
+
+    this.chargeGain.gain.setValueAtTime(0.01, now);
+    this.chargeGain.gain.linearRampToValueAtTime(0.2, now + 0.08);
+
+    this.chargeOsc.connect(filter);
+    filter.connect(this.chargeGain);
+    this.chargeGain.connect(this.ctx.destination);
+
+    this.chargeOsc.start(now);
+  }
+
+  updateCharge(ratio) {
+    if (!this.enabled || !this.ctx || !this.chargeOsc) return;
+    const now = this.ctx.currentTime;
+    const targetFreq = 140 + ratio * 600; // 140Hz -> 740Hz
+    this.chargeOsc.frequency.setValueAtTime(targetFreq, now);
+  }
+
+  stopCharge() {
+    if (this.chargeOsc) {
+      try {
+        const now = this.ctx.currentTime;
+        this.chargeGain.gain.linearRampToValueAtTime(0.001, now + 0.05);
+        this.chargeOsc.stop(now + 0.05);
+      } catch (e) {}
+      this.chargeOsc = null;
+      this.chargeGain = null;
+    }
+  }
+
+  // ジャンプ音: びよ〜ん！というスプリング跳躍音
+  playJump(powerRatio) {
+    if (!this.enabled || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    const startFreq = 300 + powerRatio * 180;
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(720 + powerRatio * 350, now + 0.14);
+    osc.frequency.exponentialRampToValueAtTime(340, now + 0.32);
+
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.32);
+  }
+
+  // 着地音: ドスン！という重みのある低音キック＋砂煙ノイズ
+  playLand() {
+    if (!this.enabled || !this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.14);
+
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.14);
+
+    this.playNoise(0.08, 0.15, 420);
+  }
+
+  // アシスト着地音: ギリギリセーフ！のシュッとした滑り込み音
+  playAssist() {
+    if (!this.enabled || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.18);
+
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.18);
+    this.playNoise(0.06, 0.1, 800);
+  }
+
+  // PERFECT音: ピキーン！という高音クリスタル＆チャイム快音
+  playPerfect(combo) {
+    if (!this.enabled || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    
+    // ピキーン！という鋭いアタック
+    const strikeOsc = this.ctx.createOscillator();
+    const strikeGain = this.ctx.createGain();
+    strikeOsc.type = 'triangle';
+    strikeOsc.frequency.setValueAtTime(1800, now);
+    strikeOsc.frequency.exponentialRampToValueAtTime(2600, now + 0.08);
+    strikeGain.gain.setValueAtTime(0.3, now);
+    strikeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    strikeOsc.connect(strikeGain);
+    strikeGain.connect(this.ctx.destination);
+    strikeOsc.start(now);
+    strikeOsc.stop(now + 0.12);
+
+    // メジャーアルペジオ和音
+    const notes = [659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00]; // E5〜C7
+    const baseIndex = Math.min(combo - 1, 3);
+
+    [0, 1, 2, 4].forEach((offset, i) => {
+      const freq = notes[Math.min(baseIndex + offset, notes.length - 1)];
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + i * 0.035);
+
+      gain.gain.setValueAtTime(0.24, now + i * 0.035);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.035 + 0.5);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + i * 0.035);
+      osc.stop(now + i * 0.035 + 0.5);
+    });
+  }
+
+  // 落下ミス音: ピューーー…ドカン
+  playFall() {
+    if (!this.enabled || !this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(480, now);
+    osc.frequency.exponentialRampToValueAtTime(70, now + 0.55);
+
+    gain.gain.setValueAtTime(0.28, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.55);
+
+    setTimeout(() => {
+      this.playNoise(0.38, 0.45, 300);
+    }, 450);
+  }
+
+  playNoise(duration, volume, cutoff) {
+    if (!this.enabled || !this.ctx) return;
+    const bufferSize = this.ctx.sampleRate * duration;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(cutoff, this.ctx.currentTime);
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    noise.start();
+  }
+}
+
+const audio = new SoundManager();
+
+/* ==========================================================================
+   Phaser 3 Game Implementation
+   ========================================================================== */
+const CONFIG = {
+  width: 750,
+  height: 1334,
+  maxChargeTime: 1250, // 最大チャージ時間 (ms) - 微調整しやすい長さに調整
+  minJumpDist: 150,
+  maxJumpDist: 580,
+  perfectThresholdRatio: 0.28, // 中心から28%以内ならPERFECT
+  assistThresholdRatio: 1.25,  // 1.0〜1.25は端っこ吸い込みセーフ判定
+  colors: [
+    { top: 0xff477e, side1: 0xff70a6, side2: 0xd90466, name: 'sakura' },
+    { top: 0x00f0ff, side1: 0x0072ff, side2: 0x0033aa, name: 'cyber' },
+    { top: 0xffd700, side1: 0xffa502, side2: 0xcc6600, name: 'gold' },
+    { top: 0xa55eea, side1: 0x8854d0, side2: 0x542b87, name: 'violet' },
+    { top: 0x2ed573, side1: 0x10ac84, side2: 0x065f46, name: 'emerald' },
+  ]
+};
+
+let isFirstLoad = true;
+
+class MainScene extends Phaser.Scene {
+  constructor() {
+    super('MainScene');
+  }
+
+  preload() {
+    this.createNinjaTexture();
+    this.createSmokeParticle();
+    this.createSparkParticle();
+    this.createSakuraParticle();
+    this.createTargetMark();
+  }
+
+  create() {
+    this.score = 0;
+    this.combo = 0;
+    this.maxCombo = 0;
+    this.bestScore = parseInt(localStorage.getItem('jump_pyon_best') || '0', 10);
+    this.state = isFirstLoad ? 'TITLE' : 'IDLE';
+    this.chargeStartTime = 0;
+    this.chargeRatio = 0;
+
+    this.platforms = [];
+    this.currentPlatformIndex = 0;
+
+    this.bgLayer = this.add.container(0, 0);
+    this.worldLayer = this.add.container(0, 0);
+    this.fxLayer = this.add.container(0, 0);
+
+    this.createBackground();
+    this.setupInitialPlatforms();
+    this.createPlayer();
+    this.setupInput();
+    this.updateUI();
+
+    // 桜の花びらアンビエント放出
+    this.time.addEvent({
+      delay: 200,
+      callback: this.spawnAmbientSakura,
+      callbackScope: this,
+      loop: true
+    });
+
+    // カメラ設定: 忍者を画面中央よりやや下寄りに配置
+    this.cameras.main.startFollow(this.playerShadow, false, 0.08, 0.08, 0, 140);
+  }
+
+  /* ------------------------------------------------------------------------
+     動的テクスチャ・スプライト生成
+     ------------------------------------------------------------------------ */
+  createNinjaTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 110;
+    canvas.height = 130;
+    const ctx = canvas.getContext('2d');
+
+    // 忍者絵文字 + 桜ネオングロー
+    ctx.font = '84px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(255, 42, 141, 0.9)';
+    ctx.shadowBlur = 18;
+    ctx.fillText('🥷', 55, 65);
+
+    this.textures.addCanvas('ninja_sprite', canvas);
+  }
+
+  createSmokeParticle() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createRadialGradient(16, 16, 2, 16, 16, 16);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+    grad.addColorStop(0.5, 'rgba(255, 200, 230, 0.5)');
+    grad.addColorStop(1, 'rgba(255, 200, 230, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(16, 16, 16, 0, Math.PI * 2);
+    ctx.fill();
+
+    this.textures.addCanvas('smoke_particle', canvas);
+  }
+
+  createSparkParticle() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 24;
+    canvas.height = 24;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.arc(12, 12, 10, 0, Math.PI * 2);
+    ctx.fill();
+
+    this.textures.addCanvas('spark_particle', canvas);
+  }
+
+  createSakuraParticle() {
+    // 桜の花びら形状
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#ff75a0';
+    ctx.beginPath();
+    ctx.moveTo(16, 4);
+    ctx.bezierCurveTo(8, 4, 4, 12, 6, 20);
+    ctx.bezierCurveTo(8, 28, 16, 30, 16, 30);
+    ctx.bezierCurveTo(16, 30, 24, 28, 26, 20);
+    ctx.bezierCurveTo(28, 12, 24, 4, 16, 4);
+    ctx.fill();
+
+    // 先端の割れ目
+    ctx.fillStyle = '#ff2a8d';
+    ctx.beginPath();
+    ctx.arc(16, 6, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    this.textures.addCanvas('sakura_particle', canvas);
+  }
+
+  createTargetMark() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 72;
+    canvas.height = 36;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.save();
+    ctx.scale(1, 0.5);
+    // 外輪（ピンクゴールド）
+    ctx.fillStyle = 'rgba(255, 20, 147, 0.95)';
+    ctx.beginPath();
+    ctx.arc(36, 36, 28, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(36, 36, 17, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 20, 147, 1)';
+    ctx.beginPath();
+    ctx.arc(36, 36, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    this.textures.addCanvas('target_mark', canvas);
+  }
+
+  createBackground() {
+    const bgGraphics = this.add.graphics().setScrollFactor(0);
+    bgGraphics.fillGradientStyle(0x050614, 0x0a0c24, 0x16133a, 0x221338, 1);
+    bgGraphics.fillRect(0, 0, CONFIG.width, CONFIG.height);
+    this.bgLayer.add(bgGraphics);
+
+    // 満月（桜色のハロー）
+    const moon = this.add.graphics().setScrollFactor(0.02);
+    moon.fillStyle(0xffe0ec, 0.15);
+    moon.fillCircle(CONFIG.width * 0.78, 260, 100);
+    moon.fillStyle(0xffe6f0, 0.4);
+    moon.fillCircle(CONFIG.width * 0.78, 260, 72);
+    moon.fillStyle(0xffffff, 0.95);
+    moon.fillCircle(CONFIG.width * 0.78, 260, 52);
+    this.bgLayer.add(moon);
+
+    // 星々
+    for (let i = 0; i < 48; i++) {
+      const x = Phaser.Math.Between(20, CONFIG.width - 20);
+      const y = Phaser.Math.Between(30, CONFIG.height * 0.65);
+      const star = this.add.circle(x, y, Phaser.Math.FloatBetween(1, 2.5), 0xffffff, Phaser.Math.FloatBetween(0.3, 0.9));
+      star.setScrollFactor(0.04);
+      this.bgLayer.add(star);
+
+      this.tweens.add({
+        targets: star,
+        alpha: 0.1,
+        duration: Phaser.Math.Between(1000, 2500),
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+    }
+
+    // 遠景ビル群
+    const city = this.add.graphics().setScrollFactor(0.12);
+    city.fillStyle(0x0a0d24, 0.9);
+    for (let bx = -300; bx < CONFIG.width + 500; bx += 70) {
+      const bh = Phaser.Math.Between(160, 440);
+      city.fillRect(bx, CONFIG.height - bh, 65, bh);
+      for (let wy = CONFIG.height - bh + 20; wy < CONFIG.height - 30; wy += 35) {
+        if (Math.random() > 0.4) {
+          city.fillStyle(0xff75a0, 0.35);
+          city.fillRect(bx + 12, wy, 10, 16);
+          city.fillStyle(0x0a0d24, 0.9);
+        }
+      }
+    }
+    this.bgLayer.add(city);
+  }
+
+  spawnAmbientSakura() {
+    // 画面上部から風に吹かれて舞い散る桜
+    const startX = this.ninja.x + Phaser.Math.Between(-CONFIG.width * 0.6, CONFIG.width * 0.6);
+    const startY = this.ninja.y - CONFIG.height * 0.5;
+    const p = this.add.image(startX, startY, 'sakura_particle');
+    p.setScale(Phaser.Math.FloatBetween(0.4, 0.8));
+    p.setAlpha(Phaser.Math.FloatBetween(0.4, 0.8));
+    p.angle = Phaser.Math.Between(0, 360);
+    this.fxLayer.add(p);
+
+    this.tweens.add({
+      targets: p,
+      x: startX + Phaser.Math.Between(100, 300),
+      y: startY + CONFIG.height * 0.9,
+      angle: p.angle + Phaser.Math.Between(180, 540),
+      alpha: 0,
+      duration: Phaser.Math.Between(4000, 6500),
+      ease: 'Sine.easeInOut',
+      onComplete: () => p.destroy()
+    });
+  }
+
+  /* ------------------------------------------------------------------------
+     足場（2.5Dアイソメトリックブロック）生成
+     ------------------------------------------------------------------------ */
+  createPlatform(x, y, width, depth, height, colorTheme, isCylinder = false) {
+    const container = this.add.container(x, y);
+    container.pWidth = width;
+    container.pDepth = depth;
+    container.pHeight = height;
+    container.isCylinder = isCylinder;
+    container.colorTheme = colorTheme;
+    container.origY = y;
+
+    const g = this.add.graphics();
+    const halfW = width / 2;
+    const halfD = depth / 2;
+
+    if (isCylinder) {
+      // 円柱ブロック
+      g.fillStyle(colorTheme.side1, 1);
+      g.fillRect(-halfW, 0, width, height);
+
+      // 側面ライン
+      g.fillStyle(0xffffff, 0.18);
+      g.fillRect(-halfW + 10, 14, width - 20, 6);
+      g.fillRect(-halfW + 10, 32, width - 20, 6);
+
+      // 下面
+      g.fillStyle(colorTheme.side2, 1);
+      g.fillEllipse(0, height, width, depth);
+
+      // 上面
+      g.fillStyle(colorTheme.top, 1);
+      g.fillEllipse(0, 0, width, depth);
+      g.lineStyle(3, 0xffffff, 0.85);
+      g.strokeEllipse(0, 0, width, depth);
+    } else {
+      // 菱形直方体ブロック
+      // 左側面
+      g.fillStyle(colorTheme.side2, 1);
+      g.beginPath();
+      g.moveTo(-halfW, 0);
+      g.lineTo(0, halfD);
+      g.lineTo(0, halfD + height);
+      g.lineTo(-halfW, height);
+      g.closePath();
+      g.fill();
+
+      // 右側面
+      g.fillStyle(colorTheme.side1, 1);
+      g.beginPath();
+      g.moveTo(0, halfD);
+      g.lineTo(halfW, 0);
+      g.lineTo(halfW, height);
+      g.lineTo(0, halfD + height);
+      g.closePath();
+      g.fill();
+
+      // 窓明かり
+      g.fillStyle(0xffffff, 0.22);
+      g.fillRoundedRect(-halfW + 14, 16, halfW - 22, 12, 2);
+      g.fillRoundedRect(10, 16, halfW - 22, 12, 2);
+      g.fillRoundedRect(-halfW + 14, 38, halfW - 22, 12, 2);
+      g.fillRoundedRect(10, 38, halfW - 22, 12, 2);
+
+      // 上面（菱形天面）
+      g.fillStyle(colorTheme.top, 1);
+      g.beginPath();
+      g.moveTo(0, -halfD);
+      g.lineTo(halfW, 0);
+      g.lineTo(0, halfD);
+      g.lineTo(-halfW, 0);
+      g.closePath();
+      g.fill();
+      g.lineStyle(3.5, 0xffffff, 0.9);
+      g.strokePath();
+    }
+
+    container.add(g);
+
+    // 中央ターゲットマーク
+    const target = this.add.image(0, 0, 'target_mark');
+    const scale = (width / 180) * 0.85;
+    target.setScale(scale);
+    container.add(target);
+    container.targetMark = target;
+
+    this.tweens.add({
+      targets: target,
+      scaleX: scale * 1.18,
+      scaleY: scale * 1.18,
+      duration: 750,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    this.worldLayer.add(container);
+    return container;
+  }
+
+  setupInitialPlatforms() {
+    // 初期の足場（幅広で安心）
+    const p1 = this.createPlatform(CONFIG.width * 0.36, CONFIG.height * 0.65, 205, 110, 120, CONFIG.colors[0], false);
+    this.platforms.push(p1);
+    this.spawnNextPlatform(p1, 1);
+  }
+
+  spawnNextPlatform(prevPlatform, forcedDirection = 0) {
+    let dir = forcedDirection;
+    if (dir === 0) {
+      if (prevPlatform.x < CONFIG.width * 0.32) {
+        dir = 1;
+      } else if (prevPlatform.x > CONFIG.width * 0.68) {
+        dir = -1;
+      } else {
+        dir = Math.random() > 0.5 ? 1 : -1;
+      }
+    }
+
+    const distance = Phaser.Math.Between(220, 400);
+    const angleRad = dir === 1 ? -Phaser.Math.DegToRad(30) : -Phaser.Math.DegToRad(150);
+
+    const nx = prevPlatform.x + Math.cos(angleRad) * distance;
+    const ny = prevPlatform.y + Math.sin(angleRad) * distance;
+
+    // 足場幅を全体的に15〜20%拡大（難易度緩和＆イライラ防止）
+    const difficultyMod = Math.min(this.score * 1.0, 35);
+    const width = Phaser.Math.Between(170 - difficultyMod, 215 - difficultyMod);
+    const depth = width * 0.55;
+    const height = Phaser.Math.Between(100, 140);
+    const isCylinder = Math.random() > 0.45;
+    const color = Phaser.Utils.Array.GetRandom(CONFIG.colors);
+
+    const nextPlatform = this.createPlatform(nx, ny, width, depth, height, color, isCylinder);
+    nextPlatform.directionFromPrev = dir;
+    nextPlatform.targetDistance = distance;
+
+    nextPlatform.y -= 150;
+    nextPlatform.alpha = 0;
+    this.tweens.add({
+      targets: nextPlatform,
+      y: ny,
+      alpha: 1,
+      duration: 350,
+      ease: 'Back.easeOut'
+    });
+
+    this.platforms.push(nextPlatform);
+  }
+
+  /* ------------------------------------------------------------------------
+     プレイヤー（忍者）生成
+     ------------------------------------------------------------------------ */
+  createPlayer() {
+    const curP = this.platforms[0];
+
+    this.playerShadow = this.add.ellipse(curP.x, curP.y, 52, 26, 0x000000, 0.45);
+    this.worldLayer.add(this.playerShadow);
+
+    this.ninja = this.add.image(curP.x, curP.y - 38, 'ninja_sprite');
+    this.ninja.setOrigin(0.5, 0.85);
+    this.ninja.setScale(0.85);
+    this.worldLayer.add(this.ninja);
+
+    this.playerBaseX = curP.x;
+    this.playerBaseY = curP.y;
+    this.playerAltitude = 0;
+
+    this.chargeGfx = this.add.graphics();
+    this.fxLayer.add(this.chargeGfx);
+
+    // オーラエフェクト用タイマー
+    this.time.addEvent({
+      delay: 70,
+      callback: this.emitComboAura,
+      callbackScope: this,
+      loop: true
+    });
+  }
+
+  emitComboAura() {
+    if (this.combo < 2 || this.state === 'FALLING' || this.state === 'GAMEOVER') return;
+    
+    // コンボオーラスパーク
+    const auraColors = [0xff2a8d, 0xffd700, 0x00f0ff, 0xff75a0];
+    const color = Phaser.Utils.Array.GetRandom(auraColors);
+    const p = this.add.circle(
+      this.ninja.x + Phaser.Math.Between(-25, 25),
+      this.ninja.y - Phaser.Math.Between(10, 50),
+      Phaser.Math.Between(3, 7),
+      color,
+      0.9
+    );
+    this.fxLayer.add(p);
+
+    this.tweens.add({
+      targets: p,
+      y: p.y - Phaser.Math.Between(30, 60),
+      alpha: 0,
+      scale: 0.2,
+      duration: Phaser.Math.Between(250, 450),
+      ease: 'Quad.easeOut',
+      onComplete: () => p.destroy()
+    });
+  }
+
+  /* ------------------------------------------------------------------------
+     入力処理
+     ------------------------------------------------------------------------ */
+  setupInput() {
+    this.input.on('pointerdown', () => {
+      if (this.state === 'IDLE') {
+        this.startCharging();
+      }
+    });
+
+    this.input.on('pointerup', () => {
+      if (this.state === 'CHARGING') {
+        this.executeJump();
+      }
+    });
+
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.spaceKey.on('down', () => {
+      if (this.state === 'IDLE') this.startCharging();
+    });
+    this.spaceKey.on('up', () => {
+      if (this.state === 'CHARGING') this.executeJump();
+    });
+  }
+
+  startCharging() {
+    audio.init();
+    this.state = 'CHARGING';
+    this.chargeStartTime = this.time.now;
+    this.chargeRatio = 0;
+    audio.startCharge();
+  }
+
+  update(time, delta) {
+    if (this.state === 'CHARGING') {
+      const elapsed = time - this.chargeStartTime;
+      this.chargeRatio = Math.min(elapsed / CONFIG.maxChargeTime, 1.0);
+      audio.updateCharge(this.chargeRatio);
+
+      // 忍者の圧縮アニメーション（グググ…）
+      const squishY = 0.85 - this.chargeRatio * 0.35;
+      const stretchX = 0.85 + this.chargeRatio * 0.25;
+      this.ninja.setScale(stretchX, squishY);
+
+      // 微振動
+      const shakeOffset = (Math.random() - 0.5) * (this.chargeRatio * 4.5);
+      this.ninja.x = this.playerBaseX + shakeOffset;
+
+      this.drawPowerGauge();
+    } else {
+      this.chargeGfx.clear();
+    }
+  }
+
+  drawPowerGauge() {
+    this.chargeGfx.clear();
+    const nx = this.ninja.x;
+    const ny = this.ninja.y - 82;
+
+    // 外枠リング
+    this.chargeGfx.lineStyle(7, 0x141838, 0.85);
+    this.chargeGfx.beginPath();
+    this.chargeGfx.arc(nx, ny, 28, -Math.PI * 0.5, Math.PI * 1.5, false);
+    this.chargeGfx.strokePath();
+
+    // ゲージ色（シアン -> ゴールド -> 桜ピンク）
+    let gaugeColor = 0x00f0ff;
+    if (this.chargeRatio > 0.75) gaugeColor = 0xff2a8d;
+    else if (this.chargeRatio > 0.45) gaugeColor = 0xffd700;
+
+    this.chargeGfx.lineStyle(7, gaugeColor, 1);
+    this.chargeGfx.beginPath();
+    this.chargeGfx.arc(nx, ny, 28, -Math.PI * 0.5, -Math.PI * 0.5 + Math.PI * 2 * this.chargeRatio, false);
+    this.chargeGfx.strokePath();
+
+    // 先端の光るスパーク
+    const endAngle = -Math.PI * 0.5 + Math.PI * 2 * this.chargeRatio;
+    const sparkX = nx + Math.cos(endAngle) * 28;
+    const sparkY = ny + Math.sin(endAngle) * 28;
+    this.chargeGfx.fillStyle(0xffffff, 1);
+    this.chargeGfx.fillCircle(sparkX, sparkY, 4);
+  }
+
+  /* ------------------------------------------------------------------------
+     ジャンプ実行 & 放物線物理Tween
+     ------------------------------------------------------------------------ */
+  executeJump() {
+    this.state = 'JUMPING';
+    audio.stopCharge();
+    audio.playJump(this.chargeRatio);
+    this.chargeGfx.clear();
+
+    const curPlatform = this.platforms[this.currentPlatformIndex];
+    const nextPlatform = this.platforms[this.currentPlatformIndex + 1];
+    const dir = nextPlatform.directionFromPrev;
+
+    const jumpDistance = CONFIG.minJumpDist + (CONFIG.maxJumpDist - CONFIG.minJumpDist) * this.chargeRatio;
+    const angleRad = dir === 1 ? -Phaser.Math.DegToRad(30) : -Phaser.Math.DegToRad(150);
+
+    const startX = this.playerBaseX;
+    const startY = this.playerBaseY;
+    const destX = startX + Math.cos(angleRad) * jumpDistance;
+    const destY = startY + Math.sin(angleRad) * jumpDistance;
+
+    const jumpDuration = 480 + (jumpDistance / CONFIG.maxJumpDist) * 220;
+    const maxPeakHeight = 90 + jumpDistance * 0.42;
+
+    this.emitSmoke(startX, startY);
+    if (this.combo >= 2) this.emitSakuraBurst(startX, startY, 8);
+
+    const rotateAngle = dir === 1 ? 360 : -360;
+
+    this.tweens.add({
+      targets: { progress: 0 },
+      progress: 1,
+      duration: jumpDuration,
+      ease: 'Linear',
+      onUpdate: (tween, target) => {
+        const p = target.progress;
+        
+        this.playerBaseX = startX + (destX - startX) * p;
+        this.playerBaseY = startY + (destY - startY) * p;
+
+        this.playerAltitude = Math.sin(Math.PI * p) * maxPeakHeight;
+
+        this.ninja.x = this.playerBaseX;
+        this.ninja.y = this.playerBaseY - 38 - this.playerAltitude;
+
+        this.playerShadow.x = this.playerBaseX;
+        this.playerShadow.y = this.playerBaseY;
+        const shadowScale = 1 - (this.playerAltitude / maxPeakHeight) * 0.45;
+        this.playerShadow.setScale(shadowScale);
+        this.playerShadow.setAlpha(0.45 * shadowScale);
+
+        this.ninja.angle = p * rotateAngle;
+      },
+      onComplete: () => {
+        this.ninja.angle = 0;
+        this.checkLanding(destX, destY, nextPlatform, curPlatform);
+      }
+    });
+
+    this.tweens.add({
+      targets: this.ninja,
+      scaleX: 0.85,
+      scaleY: 0.85,
+      duration: 150,
+      ease: 'Back.easeOut'
+    });
+  }
+
+  /* ------------------------------------------------------------------------
+     着地判定（Safe / Assist / Perfect / Miss）
+     ------------------------------------------------------------------------ */
+  checkLanding(landX, landY, targetPlatform, prevPlatform) {
+    const dx = landX - targetPlatform.x;
+    const dy = landY - targetPlatform.y;
+    const halfW = targetPlatform.pWidth / 2;
+    const halfD = targetPlatform.pDepth / 2;
+
+    const normalizedDistSq = Math.pow(dx / halfW, 2) + Math.pow(dy / halfD, 2);
+
+    const prevDx = landX - prevPlatform.x;
+    const prevDy = landY - prevPlatform.y;
+    const prevHalfW = prevPlatform.pWidth / 2;
+    const prevHalfD = prevPlatform.pDepth / 2;
+    const prevNormalizedDistSq = Math.pow(prevDx / prevHalfW, 2) + Math.pow(prevDy / prevHalfD, 2);
+
+    if (normalizedDistSq <= 1.0) {
+      // 🎯 完全セーフ着地
+      const isPerfect = normalizedDistSq <= Math.pow(CONFIG.perfectThresholdRatio, 2);
+      this.handleSuccessfulLanding(targetPlatform, isPerfect, false, landX, landY);
+    } else if (normalizedDistSq <= CONFIG.assistThresholdRatio) {
+      // 🌸 アシスト吸い込みセーフ判定（ギリギリ端っこに着地）
+      this.handleSuccessfulLanding(targetPlatform, false, true, landX, landY);
+    } else if (prevNormalizedDistSq <= 1.0) {
+      // 元の足場に着地
+      this.handleStayOnPlatform(prevPlatform, landX, landY);
+    } else {
+      // 💀 落下ミス
+      this.handleFall(landX, landY);
+    }
+  }
+
+  handleSuccessfulLanding(platform, isPerfect, isAssist, landX, landY) {
+    this.state = 'LANDING';
+    this.currentPlatformIndex++;
+
+    // 足場のボヨンスプリングアニメーション（Juice!）
+    this.bouncePlatform(platform);
+
+    // 忍者のSquash & Stretch
+    this.tweens.add({
+      targets: this.ninja,
+      scaleX: 1.2,
+      scaleY: 0.5,
+      duration: 90,
+      yoyo: true,
+      ease: 'Quad.easeInOut'
+    });
+
+    if (isPerfect) {
+      this.combo++;
+      if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+      const addScore = Math.pow(2, Math.min(this.combo, 6)); // 2, 4, 8, 16, 32, 64...
+      this.score += addScore;
+
+      audio.playPerfect(this.combo);
+      
+      // 画面全体フラッシュ＋カメラプチズーム
+      this.cameras.main.flash(200, 255, 180, 220, false);
+      this.tweens.add({
+        targets: this.cameras.main,
+        zoom: 1.045,
+        duration: 120,
+        yoyo: true,
+        ease: 'Quad.easeInOut'
+      });
+
+      this.emitFireworks(landX, landY);
+      this.emitSakuraBurst(landX, landY, 35);
+      this.showToast('🌸 PERFECT! 🌸', `+${addScore} (COMBO x${this.combo})`, true);
+      this.cameras.main.shake(140, 0.009);
+    } else if (isAssist) {
+      // アシスト吸い込み演出
+      this.combo = 0;
+      this.score += 1;
+      audio.playAssist();
+      this.emitSmoke(landX, landY);
+      this.emitSakuraBurst(landX, landY, 12);
+      this.showToast('GIRI GIRI SAFE!', '+1', false);
+
+      // 足場内側へスッと滑り込み
+      this.tweens.add({
+        targets: this.ninja,
+        x: platform.x + (landX - platform.x) * 0.7,
+        y: platform.y + (landY - platform.y) * 0.7 - 38,
+        duration: 120,
+        ease: 'Cubic.easeOut'
+      });
+    } else {
+      this.combo = 0;
+      this.score += 1;
+      audio.playLand();
+      this.emitSmoke(landX, landY);
+      this.emitSakuraBurst(landX, landY, 8);
+    }
+
+    this.updateUI();
+    this.spawnNextPlatform(platform);
+
+    this.time.delayedCall(160, () => {
+      this.panCameraToPlatform(platform);
+    });
+  }
+
+  bouncePlatform(platform) {
+    // 踏み込んだ足場のボヨンスプリング
+    const initialY = platform.origY || platform.y;
+    this.tweens.add({
+      targets: platform,
+      y: initialY + 12,
+      duration: 70,
+      yoyo: true,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        platform.y = initialY;
+      }
+    });
+  }
+
+  handleStayOnPlatform(platform, landX, landY) {
+    this.state = 'LANDING';
+    audio.playLand();
+    this.bouncePlatform(platform);
+    this.emitSmoke(landX, landY);
+
+    this.tweens.add({
+      targets: this.ninja,
+      scaleX: 1.15,
+      scaleY: 0.6,
+      duration: 80,
+      yoyo: true,
+      ease: 'Quad.easeInOut'
+    });
+
+    this.time.delayedCall(200, () => {
+      this.state = 'IDLE';
+    });
+  }
+
+  handleFall(landX, landY) {
+    this.state = 'FALLING';
+    audio.playFall();
+    this.cameras.main.shake(240, 0.02);
+
+    this.emitSakuraBurst(this.ninja.x, this.ninja.y, 25);
+
+    // 谷底へ回転しながら落下
+    this.tweens.add({
+      targets: this.ninja,
+      y: this.ninja.y + 650,
+      angle: 720,
+      alpha: 0,
+      duration: 650,
+      ease: 'Cubic.easeIn'
+    });
+
+    this.tweens.add({
+      targets: this.playerShadow,
+      alpha: 0,
+      scaleX: 0.1,
+      scaleY: 0.1,
+      duration: 350
+    });
+
+    this.time.delayedCall(700, () => {
+      this.showGameOver();
+    });
+  }
+
+  panCameraToPlatform(platform) {
+    this.playerBaseX = platform.x;
+    this.playerBaseY = platform.y;
+    this.ninja.x = platform.x;
+    this.ninja.y = platform.y - 38;
+    this.playerShadow.x = platform.x;
+    this.playerShadow.y = platform.y;
+
+    this.state = 'IDLE';
+
+    if (this.platforms.length > 5) {
+      const oldP = this.platforms.shift();
+      this.currentPlatformIndex--;
+      oldP.destroy();
+    }
+  }
+
+  /* ------------------------------------------------------------------------
+     パーティクル・演出（Juice）
+     ------------------------------------------------------------------------ */
+  emitSmoke(x, y) {
+    for (let i = 0; i < 9; i++) {
+      const p = this.add.image(x, y, 'smoke_particle');
+      p.setScale(Phaser.Math.FloatBetween(0.5, 1.3));
+      p.setAlpha(0.85);
+      this.fxLayer.add(p);
+
+      const vx = Phaser.Math.Between(-65, 65);
+      const vy = Phaser.Math.Between(-35, 20);
+
+      this.tweens.add({
+        targets: p,
+        x: x + vx,
+        y: y + vy,
+        alpha: 0,
+        scale: 0.1,
+        duration: Phaser.Math.Between(300, 500),
+        ease: 'Cubic.easeOut',
+        onComplete: () => p.destroy()
+      });
+    }
+  }
+
+  emitFireworks(x, y) {
+    const colors = [0xffd700, 0xff2a8d, 0x00f0ff, 0xffa502, 0xff70a6];
+    for (let i = 0; i < 32; i++) {
+      const p = this.add.image(x, y - 20, 'spark_particle');
+      p.setTint(Phaser.Utils.Array.GetRandom(colors));
+      p.setScale(Phaser.Math.FloatBetween(0.7, 1.5));
+      this.fxLayer.add(p);
+
+      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      const speed = Phaser.Math.Between(90, 240);
+
+      this.tweens.add({
+        targets: p,
+        x: x + Math.cos(angle) * speed,
+        y: y - 20 + Math.sin(angle) * speed,
+        alpha: 0,
+        scale: 0,
+        duration: Phaser.Math.Between(450, 800),
+        ease: 'Cubic.easeOut',
+        onComplete: () => p.destroy()
+      });
+    }
+  }
+
+  emitSakuraBurst(x, y, count = 20) {
+    for (let i = 0; i < count; i++) {
+      const p = this.add.image(x, y - 15, 'sakura_particle');
+      p.setScale(Phaser.Math.FloatBetween(0.6, 1.2));
+      p.setAlpha(1);
+      p.angle = Phaser.Math.Between(0, 360);
+      this.fxLayer.add(p);
+
+      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      const speed = Phaser.Math.Between(70, 200);
+
+      this.tweens.add({
+        targets: p,
+        x: x + Math.cos(angle) * speed,
+        y: y - 15 + Math.sin(angle) * speed,
+        angle: p.angle + Phaser.Math.Between(180, 540),
+        alpha: 0,
+        scale: 0.2,
+        duration: Phaser.Math.Between(550, 950),
+        ease: 'Cubic.easeOut',
+        onComplete: () => p.destroy()
+      });
+    }
+  }
+
+  showToast(mainText, subText, isPerfect = true) {
+    const toast = document.getElementById('toast-popup');
+    const mainEl = document.getElementById('toast-main');
+    const subEl = document.getElementById('toast-sub');
+
+    mainEl.innerText = mainText;
+    subEl.innerText = subText;
+
+    toast.className = `toast-popup ${isPerfect ? 'perfect' : 'assist'}`;
+    void toast.offsetWidth;
+    toast.classList.add('show');
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 650);
+  }
+
+  /* ------------------------------------------------------------------------
+     UI & ゲームループ管理
+     ------------------------------------------------------------------------ */
+  updateUI() {
+    const scoreEl = document.getElementById('score-display');
+    scoreEl.innerText = this.score;
+    scoreEl.style.transform = 'scale(1.35)';
+    setTimeout(() => {
+      scoreEl.style.transform = 'scale(1)';
+    }, 150);
+
+    // コンボHUDバッジ更新
+    const comboHud = document.getElementById('combo-hud');
+    if (this.combo >= 2) {
+      comboHud.innerText = `COMBO x${this.combo} (${Math.pow(2, Math.min(this.combo, 6))}倍)`;
+      comboHud.classList.add('active');
+    } else {
+      comboHud.classList.remove('active');
+    }
+
+    document.getElementById('best-score-display').innerText = Math.max(this.score, this.bestScore);
+  }
+
+  showGameOver() {
+    this.state = 'GAMEOVER';
+    const isNewBest = this.score > this.bestScore;
+    if (isNewBest) {
+      this.bestScore = this.score;
+      localStorage.setItem('jump_pyon_best', this.bestScore.toString());
+    }
+
+    document.getElementById('final-score').innerText = this.score;
+    document.getElementById('max-combo-stat').innerText = `x${this.maxCombo}`;
+    
+    const bestEl = document.getElementById('modal-best-score');
+    bestEl.innerHTML = `${this.bestScore} ${isNewBest ? '<span class="new-record-tag">NEW!</span>' : ''}`;
+
+    const shareText = `🌸🥷『花のピョンピョン丸』でスコア【${this.score}点】（最大コンボx${this.maxCombo}）を達成！\nミリ単位の目測でビルの屋上をピョンピョン飛び移れ！\n#花のピョンピョン丸 #Phaser3 #ブラウザゲーム`;
+    const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(window.location.href)}`;
+    document.getElementById('btn-share').href = shareUrl;
+
+    document.getElementById('modal-gameover').classList.add('active');
+  }
+
+  restartGame() {
+    isFirstLoad = false;
+    document.getElementById('modal-gameover').classList.remove('active');
+    document.getElementById('modal-title').classList.remove('active');
+
+    this.scene.restart();
+  }
+}
+
+/* ==========================================================================
+   Phaser Game Initialization & DOM Controls
+   ========================================================================== */
+const phaserConfig = {
+  type: Phaser.AUTO,
+  parent: 'game-container',
+  width: CONFIG.width,
+  height: CONFIG.height,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  scene: [MainScene],
+  render: {
+    pixelArt: false,
+    antialias: true
+  }
+};
+
+const game = new Phaser.Game(phaserConfig);
+
+document.addEventListener('DOMContentLoaded', () => {
+  const startBtn = document.getElementById('btn-start');
+  const retryBtn = document.getElementById('btn-retry');
+  const soundBtn = document.getElementById('btn-sound');
+  const titleModal = document.getElementById('modal-title');
+
+  startBtn.addEventListener('click', () => {
+    audio.init();
+    titleModal.classList.remove('active');
+    const scene = game.scene.getScene('MainScene');
+    if (scene) scene.state = 'IDLE';
+  });
+
+  retryBtn.addEventListener('click', () => {
+    audio.init();
+    const scene = game.scene.getScene('MainScene');
+    if (scene) scene.restartGame();
+  });
+
+  soundBtn.addEventListener('click', () => {
+    const isEnabled = audio.toggle();
+    soundBtn.innerText = isEnabled ? '🔊' : '🔇';
+    soundBtn.style.opacity = isEnabled ? '1' : '0.5';
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Enter' || e.code === 'Space') {
+      if (titleModal.classList.contains('active')) {
+        startBtn.click();
+      } else if (document.getElementById('modal-gameover').classList.contains('active')) {
+        retryBtn.click();
+      }
+    }
+  });
+});
+</script>
+</body>
+</html>

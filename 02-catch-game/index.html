@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>キャッチミーイフユーニャン 🐾 | Catch Me If You Nyan</title>
+  <!-- Phaser 3 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #121019;
+      font-family: 'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif;
+      touch-action: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #game-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+    }
+
+    canvas {
+      display: block;
+      margin: auto;
+      touch-action: none;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+
+  <script>
+    /* ==========================================================================
+       1. Web Audio API サウンドマネージャー（外部音声ゼロ・完全プログラマブル）
+       ========================================================================== */
+    class SoundManager {
+      constructor() {
+        this.ctx = null;
+        this.isMuted = localStorage.getItem('cat_game_muted') === 'true';
+        this.masterGain = null;
+        this.bgmTimer = null;
+        this.bgmStep = 0;
+        this.isBgmPlaying = false;
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        this.ctx = new AudioContextClass();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.4, this.ctx.currentTime);
+        this.masterGain.connect(this.ctx.destination);
+      }
+
+      resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggleMute() {
+        this.isMuted = !this.isMuted;
+        localStorage.setItem('cat_game_muted', this.isMuted);
+        if (this.masterGain && this.ctx) {
+          this.masterGain.gain.setTargetAtTime(this.isMuted ? 0 : 0.4, this.ctx.currentTime, 0.05);
+        }
+        return this.isMuted;
+      }
+
+      // 単音再生用ヘルパー
+      playTone(freq, type = 'sine', duration = 0.1, gainVal = 0.3, pitchEnd = null) {
+        if (!this.ctx || this.isMuted) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (pitchEnd !== null) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(10, pitchEnd), now + duration);
+        }
+
+        gain.gain.setValueAtTime(gainVal, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      // キャッチ音（コンボ数に応じたドレミファソラシド）
+      playCatch(combo = 1) {
+        if (!this.ctx || this.isMuted) return;
+        // メジャースケール周波数テーブル (C5 〜 C6)
+        const scale = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50, 1174.66, 1318.51];
+        const index = Math.min(Math.max(0, combo - 1), scale.length - 1);
+        const baseFreq = scale[index];
+
+        this.playTone(baseFreq, 'triangle', 0.12, 0.35);
+        setTimeout(() => {
+          this.playTone(baseFreq * 1.25, 'sine', 0.15, 0.25);
+        }, 40);
+      }
+
+      // またたび・フィーバー音（華やかな高速アルペジオファンファーレ）
+      playFever() {
+        if (!this.ctx || this.isMuted) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98];
+        notes.forEach((freq, i) => {
+          setTimeout(() => {
+            this.playTone(freq, 'triangle', 0.18, 0.4);
+          }, i * 55);
+        });
+      }
+
+      // ダメージ音（低音矩形波＋ピッチ降下＋ノイズ風）
+      playDamage() {
+        if (!this.ctx || this.isMuted) return;
+        this.playTone(180, 'sawtooth', 0.25, 0.45, 60);
+        setTimeout(() => {
+          this.playTone(120, 'square', 0.2, 0.4, 40);
+        }, 60);
+      }
+
+      // ゲームオーバー音（切ない下降メロディ）
+      playGameOver() {
+        if (!this.ctx || this.isMuted) return;
+        const notes = [440, 415.3, 392, 349.23, 261.63];
+        notes.forEach((freq, i) => {
+          setTimeout(() => {
+            this.playTone(freq, 'sawtooth', 0.35, 0.35, freq * 0.9);
+          }, i * 150);
+        });
+      }
+
+      // ポップ音（UI・ボタンタップ）
+      playPop() {
+        this.playTone(700, 'sine', 0.08, 0.25, 1200);
+      }
+
+      // 8bit風BGMループシーケンサー
+      startBGM() {
+        if (this.isBgmPlaying) return;
+        this.isBgmPlaying = true;
+        this.bgmStep = 0;
+
+        // ポップで軽快な16ステップメロディ (Cメジャー)
+        const melody = [
+          523.25, 0, 659.25, 0, 783.99, 0, 659.25, 0,
+          880.00, 783.99, 659.25, 587.33, 523.25, 0, 587.33, 0,
+          659.25, 0, 587.33, 0, 523.25, 0, 440.00, 0,
+          523.25, 0, 587.33, 0, 659.25, 783.99, 1046.50, 0
+        ];
+        const bass = [
+          261.63, 261.63, 261.63, 261.63, 329.63, 329.63, 329.63, 329.63,
+          349.23, 349.23, 349.23, 349.23, 392.00, 392.00, 392.00, 392.00,
+          261.63, 261.63, 261.63, 261.63, 220.00, 220.00, 220.00, 220.00,
+          174.61, 174.61, 196.00, 196.00, 261.63, 261.63, 261.63, 261.63
+        ];
+
+        const tempo = 135; // ms per 16th note
+        this.bgmTimer = setInterval(() => {
+          if (!this.ctx || this.isMuted) {
+            this.bgmStep = (this.bgmStep + 1) % melody.length;
+            return;
+          }
+          const melFreq = melody[this.bgmStep];
+          const bassFreq = bass[this.bgmStep];
+
+          if (melFreq > 0) {
+            this.playTone(melFreq, 'triangle', 0.1, 0.12);
+          }
+          if (this.bgmStep % 2 === 0 && bassFreq > 0) {
+            this.playTone(bassFreq, 'sine', 0.16, 0.18);
+          }
+
+          this.bgmStep = (this.bgmStep + 1) % melody.length;
+        }, tempo);
+      }
+
+      stopBGM() {
+        if (this.bgmTimer) {
+          clearInterval(this.bgmTimer);
+          this.bgmTimer = null;
+        }
+        this.isBgmPlaying = false;
+      }
+    }
+
+    const soundManager = new SoundManager();
+
+    /* ==========================================================================
+       2. Canvas動的テクスチャ生成ヘルパー（外部画像ゼロ）
+       ========================================================================== */
+    function generateDynamicTextures(scene) {
+      // 1. 星パーティクル (⭐)
+      const starCanvas = scene.textures.createCanvas('particle_star', 32, 32);
+      const starCtx = starCanvas.getContext();
+      starCtx.fillStyle = '#FFD700';
+      starCtx.beginPath();
+      const cx = 16, cy = 16, spikes = 5, outerR = 14, innerR = 6;
+      let rot = Math.PI / 2 * 3;
+      let x = cx, y = cy;
+      const step = Math.PI / spikes;
+      starCtx.moveTo(cx, cy - outerR);
+      for (let i = 0; i < spikes; i++) {
+        x = cx + Math.cos(rot) * outerR;
+        y = cy + Math.sin(rot) * outerR;
+        starCtx.lineTo(x, y);
+        rot += step;
+        x = cx + Math.cos(rot) * innerR;
+        y = cy + Math.sin(rot) * innerR;
+        starCtx.lineTo(x, y);
+        rot += step;
+      }
+      starCtx.lineTo(cx, cy - outerR);
+      starCtx.closePath();
+      starCtx.fill();
+      starCanvas.refresh();
+
+      // 2. 肉球パーティクル (🐾)
+      const pawCanvas = scene.textures.createCanvas('particle_paw', 32, 32);
+      const pCtx = pawCanvas.getContext();
+      pCtx.fillStyle = '#FF85A2';
+      // メイン肉球
+      pCtx.beginPath();
+      pCtx.arc(16, 20, 8, 0, Math.PI * 2);
+      pCtx.fill();
+      // 指肉球4つ
+      const toes = [{ x: 8, y: 10 }, { x: 13, y: 6 }, { x: 19, y: 6 }, { x: 24, y: 10 }];
+      toes.forEach(t => {
+        pCtx.beginPath();
+        pCtx.arc(t.x, t.y, 3.5, 0, Math.PI * 2);
+        pCtx.fill();
+      });
+      pawCanvas.refresh();
+
+      // 3. ハートパーティクル (❤️)
+      const heartCanvas = scene.textures.createCanvas('particle_heart', 32, 32);
+      const hCtx = heartCanvas.getContext();
+      hCtx.fillStyle = '#FF4D6D';
+      hCtx.beginPath();
+      hCtx.moveTo(16, 10);
+      hCtx.bezierCurveTo(16, 4, 6, 4, 6, 12);
+      hCtx.bezierCurveTo(6, 20, 16, 26, 16, 28);
+      hCtx.bezierCurveTo(16, 26, 26, 20, 26, 12);
+      hCtx.bezierCurveTo(26, 4, 16, 4, 16, 10);
+      hCtx.fill();
+      heartCanvas.refresh();
+
+      // 4. キラキラスパークル (✨)
+      const sparkCanvas = scene.textures.createCanvas('particle_spark', 24, 24);
+      const sCtx = sparkCanvas.getContext();
+      sCtx.fillStyle = '#FFFFFF';
+      sCtx.beginPath();
+      sCtx.arc(12, 12, 6, 0, Math.PI * 2);
+      sCtx.fill();
+      sparkCanvas.refresh();
+    }
+
+    /* ==========================================================================
+       3. アイテム定義テーブル
+       ========================================================================== */
+    const FOOD_ITEMS = [
+      { emoji: '🐟', name: 'サカナ', score: 10, msg: '『サカナ』うまいニャ！', weight: 40 },
+      { emoji: '🍗', name: 'チキン', score: 10, msg: '『ササミ』最高ニャ！', weight: 35 },
+      { emoji: '🥫', name: '高級缶', score: 30, msg: '『高級缶』極上ニャ！', weight: 18 },
+      { emoji: '🌿', name: 'またたび', score: 50, msg: '『またたび』昇天ニャ〜！', weight: 7, isFever: true }
+    ];
+
+    const DANGER_ITEMS = [
+      { emoji: '🦐', name: 'エビ', msg: '『エビ』甲殻類はNGニャ！' },
+      { emoji: '🧅', name: 'タマネギ', msg: '『タマネギ』絶対ダメニャ！' },
+      { emoji: '🍫', name: 'チョコ', msg: '『チョコ』危険ニャ！' },
+      { emoji: '🥒', name: 'きゅうり', msg: '『きゅうり』ビビったニャ！' },
+      { emoji: '💉', name: '注射', msg: '『注射』大嫌いニャ！' }
+    ];
+
+    /* ==========================================================================
+       4. Phaser シーン定義
+       ========================================================================== */
+
+    // ---------------------- Boot Scene ----------------------
+    class BootScene extends Phaser.Scene {
+      constructor() {
+        super('BootScene');
+      }
+
+      create() {
+        generateDynamicTextures(this);
+        this.scene.start('TitleScene');
+      }
+    }
+
+    // ---------------------- Title Scene ----------------------
+    class TitleScene extends Phaser.Scene {
+      constructor() {
+        super('TitleScene');
+      }
+
+      create() {
+        const { width, height } = this.scale;
+
+        // 背景
+        const bg = this.add.graphics();
+        bg.fillGradientStyle(0x1F1A30, 0x1F1A30, 0x0F0C1B, 0x0F0C1B, 1);
+        bg.fillRect(0, 0, width, height);
+
+        // 浮遊する背景パーティクル
+        for (let i = 0; i < 15; i++) {
+          const star = this.add.image(
+            Phaser.Math.Between(20, width - 20),
+            Phaser.Math.Between(50, height - 50),
+            'particle_star'
+          ).setAlpha(0.25).setScale(Phaser.Math.FloatBetween(0.5, 1.2));
+
+          this.tweens.add({
+            targets: star,
+            y: star.y - Phaser.Math.Between(20, 50),
+            alpha: { from: 0.1, to: 0.4 },
+            duration: Phaser.Math.Between(2000, 4000),
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+          });
+        }
+
+        // タイトルロゴ
+        const title1 = this.add.text(width / 2, 160, 'キャッチミー', {
+          fontSize: '34px',
+          fontWeight: '900',
+          fill: '#FFDF6D',
+          fontFamily: 'sans-serif',
+          stroke: '#6D214F',
+          strokeThickness: 8
+        }).setOrigin(0.5);
+
+        const title2 = this.add.text(width / 2, 215, 'イフユーニャン 🐾', {
+          fontSize: '38px',
+          fontWeight: '900',
+          fill: '#FF85A2',
+          fontFamily: 'sans-serif',
+          stroke: '#481335',
+          strokeThickness: 8
+        }).setOrigin(0.5);
+
+        this.tweens.add({
+          targets: [title1, title2],
+          scale: { from: 0.95, to: 1.05 },
+          duration: 1200,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+
+        // センターのぴょこぴょこネコ
+        const cat = this.add.text(width / 2, 380, '😺', {
+          fontSize: '96px',
+          fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif'
+        }).setOrigin(0.5);
+
+        this.tweens.add({
+          targets: cat,
+          y: 350,
+          angle: { from: -6, to: 6 },
+          duration: 700,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+
+        // 周囲のアイテム浮遊
+        const decoItems = ['🐟', '🍗', '🥫', '🌿'];
+        decoItems.forEach((emoji, idx) => {
+          const angle = (idx / decoItems.length) * Math.PI * 2;
+          const dist = 120;
+          const item = this.add.text(width / 2 + Math.cos(angle) * dist, 380 + Math.sin(angle) * dist, emoji, {
+            fontSize: '38px'
+          }).setOrigin(0.5);
+
+          this.tweens.add({
+            targets: item,
+            y: item.y - 15,
+            duration: 1000 + idx * 200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+          });
+        });
+
+        // ハイスコア表示
+        const highScore = localStorage.getItem('cat_catch_highscore') || 0;
+        this.add.text(width / 2, 530, `👑 BEST SCORE: ${highScore}`, {
+          fontSize: '22px',
+          fontWeight: 'bold',
+          fill: '#FFD700',
+          stroke: '#000000',
+          strokeThickness: 4
+        }).setOrigin(0.5);
+
+        // TAP TO START ボタン
+        const startBtnBg = this.add.graphics();
+        startBtnBg.fillStyle(0xFF6B8B, 1);
+        startBtnBg.fillRoundedRect(width / 2 - 140, 600, 280, 60, 30);
+        startBtnBg.lineStyle(3, 0xFFFFFF, 0.9);
+        startBtnBg.strokeRoundedRect(width / 2 - 140, 600, 280, 60, 30);
+
+        const startText = this.add.text(width / 2, 630, '🐾 TAP TO START 🐾', {
+          fontSize: '22px',
+          fontWeight: '900',
+          fill: '#FFFFFF',
+          fontFamily: 'sans-serif'
+        }).setOrigin(0.5);
+
+        this.tweens.add({
+          targets: [startBtnBg, startText],
+          scale: { from: 0.96, to: 1.04 },
+          duration: 600,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+
+        // 遊び方簡易ガイド
+        this.add.text(width / 2, 710, '👆 画面スワイプで左右にネコを操作！\n🐟ごちそうを集めて 🦐キケン物をよけろニャ！', {
+          fontSize: '14px',
+          fill: '#C8C4DF',
+          align: 'center',
+          lineSpacing: 6
+        }).setOrigin(0.5);
+
+        // ミュートボタン（右上）
+        this.createMuteButton(width - 45, 45);
+
+        // 画面タップでゲームスタート
+        this.input.once('pointerdown', (pointer) => {
+          // ミュートボタンの領域をタップした場合は除外
+          if (pointer.x > width - 80 && pointer.y < 80) return;
+          soundManager.init();
+          soundManager.resume();
+          soundManager.playPop();
+          soundManager.startBGM();
+          this.scene.start('MainGameScene');
+        });
+      }
+
+      createMuteButton(x, y) {
+        const muteBtn = this.add.text(x, y, soundManager.isMuted ? '🔇' : '🔊', {
+          fontSize: '32px'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        muteBtn.on('pointerdown', (pointer) => {
+          pointer.event.stopPropagation();
+          soundManager.init();
+          const muted = soundManager.toggleMute();
+          muteBtn.setText(muted ? '🔇' : '🔊');
+          if (!muted) soundManager.playPop();
+        });
+      }
+    }
+
+    // ---------------------- Main Game Scene ----------------------
+    class MainGameScene extends Phaser.Scene {
+      constructor() {
+        super('MainGameScene');
+      }
+
+      create() {
+        const { width, height } = this.scale;
+
+        // ゲームステート
+        this.score = 0;
+        this.highScore = parseInt(localStorage.getItem('cat_catch_highscore') || '0', 10);
+        this.lives = 3;
+        this.combo = 0;
+        this.isGameOver = false;
+        this.isFever = false;
+        this.feverTimer = 0;
+        this.isInvincible = false;
+        this.catState = 'normal'; // 'normal' | 'happy' | 'damage' | 'fever'
+        this.stateResetTimer = null;
+
+        // 難易度・スポーンパラメータ
+        this.gameStartTime = this.time.now;
+        this.baseSpeed = 220;
+        this.currentSpeed = 220;
+        this.spawnDelay = 900;
+        this.dangerRatio = 0.22;
+        this.nextSpawnTime = this.time.now + 400; // 開始後すぐにスポーン
+
+        // 背景 (Depth: 0)
+        this.bgGraphics = this.add.graphics().setDepth(0);
+        this.drawBackground(0x1B162C, 0x0F0C1B);
+
+        // パーティクルエミッター (Depth: 30)
+        this.starEmitter = this.add.particles(0, 0, 'particle_star', {
+          lifespan: { min: 400, max: 700 },
+          speed: { min: 100, max: 250 },
+          scale: { start: 1, end: 0 },
+          emitting: false
+        }).setDepth(30);
+
+        this.pawEmitter = this.add.particles(0, 0, 'particle_paw', {
+          lifespan: { min: 500, max: 800 },
+          speed: { min: 80, max: 200 },
+          scale: { start: 1.2, end: 0.2 },
+          emitting: false
+        }).setDepth(30);
+
+        this.heartEmitter = this.add.particles(0, 0, 'particle_heart', {
+          lifespan: { min: 600, max: 900 },
+          speed: { min: 60, max: 160 },
+          scale: { start: 1, end: 0 },
+          emitting: false
+        }).setDepth(30);
+
+        // プレイヤー足元の影 (Depth: 5)
+        this.playerShadow = this.add.ellipse(width / 2, 745, 60, 16, 0x000000, 0.35).setDepth(5);
+
+        // プレイヤー（ネコ） (Depth: 20)
+        this.player = this.add.text(width / 2, 710, '😺', {
+          fontSize: '68px',
+          fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif'
+        }).setOrigin(0.5).setDepth(20);
+
+        this.physics.add.existing(this.player);
+        this.player.body.setCircle(28, 6, 6);
+        this.player.body.setImmovable(true);
+
+        // 落下物グループ
+        this.itemsGroup = this.add.group();
+
+        // 衝突判定設定
+        this.physics.add.overlap(this.player, this.itemsGroup, this.handleItemCatch, null, this);
+
+        // 操作設定：相対ドラッグ & マウス移動
+        this.setupControls();
+
+        // UI構築 (Depth: 100)
+        this.createUI();
+
+        // BGM確認
+        soundManager.resume();
+        if (!soundManager.isBgmPlaying) soundManager.startBGM();
+      }
+
+      drawBackground(topColor, bottomColor) {
+        const { width, height } = this.scale;
+        this.bgGraphics.clear();
+        this.bgGraphics.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, 1);
+        this.bgGraphics.fillRect(0, 0, width, height);
+      }
+
+      setupControls() {
+        const { width } = this.scale;
+        let isDragging = false;
+        let lastPointerX = 0;
+
+        this.input.on('pointerdown', (pointer) => {
+          // 右上UI除外
+          if (pointer.x > width - 70 && pointer.y < 70) return;
+          isDragging = true;
+          lastPointerX = pointer.x;
+        });
+
+        this.input.on('pointermove', (pointer) => {
+          if (this.isGameOver) return;
+          if (isDragging) {
+            const dx = pointer.x - lastPointerX;
+            this.movePlayer(this.player.x + dx);
+            lastPointerX = pointer.x;
+          } else if (!pointer.isDown && pointer.wasTouch === false) {
+            // PCのマウスホバー操作対応
+            this.movePlayer(pointer.x);
+          }
+        });
+
+        this.input.on('pointerup', () => {
+          isDragging = false;
+        });
+      }
+
+      movePlayer(targetX) {
+        const padding = 45;
+        const clampedX = Phaser.Math.Clamp(targetX, padding, this.scale.width - padding);
+        this.player.x = clampedX;
+        this.playerShadow.x = clampedX;
+      }
+
+      createUI() {
+        const { width } = this.scale;
+
+        // 上部ステータスバー背景
+        const barBg = this.add.graphics().setDepth(100);
+        barBg.fillStyle(0x000000, 0.4);
+        barBg.fillRoundedRect(10, 10, width - 20, 55, 14);
+
+        // スコアテキスト
+        this.scoreText = this.add.text(25, 24, 'SCORE: 0', {
+          fontSize: '22px',
+          fontWeight: '900',
+          fill: '#FFFFFF',
+          stroke: '#000000',
+          strokeThickness: 3
+        }).setDepth(101);
+
+        // ライフ表示（ハート絵文字）
+        this.lifeText = this.add.text(190, 24, '❤️❤️❤️', {
+          fontSize: '20px'
+        }).setDepth(101);
+
+        // コンボバナー（非表示初期化）
+        this.comboBanner = this.add.text(width / 2, 110, '', {
+          fontSize: '26px',
+          fontWeight: '900',
+          fill: '#FFDF6D',
+          stroke: '#FF4D6D',
+          strokeThickness: 5
+        }).setOrigin(0.5).setAlpha(0).setDepth(101);
+
+        // フィーバータイマーバー（画面上部）
+        this.feverBar = this.add.graphics().setDepth(102);
+        this.feverBar.setAlpha(0);
+
+        // 右上ミュートボタン
+        const muteBtn = this.add.text(width - 35, 37, soundManager.isMuted ? '🔇' : '🔊', {
+          fontSize: '26px'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(103);
+
+        muteBtn.on('pointerdown', (pointer) => {
+          pointer.event.stopPropagation();
+          const muted = soundManager.toggleMute();
+          muteBtn.setText(muted ? '🔇' : '🔊');
+          if (!muted) soundManager.playPop();
+        });
+      }
+
+      update(time, delta) {
+        if (this.isGameOver) return;
+
+        // 難易度曲線の計算（時間経過）
+        const elapsedSec = (time - this.gameStartTime) / 1000;
+        this.currentSpeed = Math.min(520, this.baseSpeed + elapsedSec * 5 + this.score * 0.15);
+        const currentDelay = this.isFever ? 180 : Math.max(380, this.spawnDelay - elapsedSec * 8 - this.score * 0.2);
+        this.dangerRatio = Math.min(0.45, 0.20 + elapsedSec * 0.003);
+
+        // 堅牢な時間ベースのアイテムスポーン
+        if (time >= this.nextSpawnTime) {
+          this.spawnItem();
+          this.nextSpawnTime = time + currentDelay;
+        }
+
+        // フィーバー状態の更新
+        if (this.isFever) {
+          this.feverTimer -= delta;
+          const ratio = Math.max(0, this.feverTimer / 3000);
+          this.updateFeverBar(ratio);
+
+          // レインボー背景アニメーション
+          const hue = (time * 0.0008) % 1;
+          const color1 = Phaser.Display.Color.HSLToColor(hue, 0.6, 0.25).color;
+          const color2 = Phaser.Display.Color.HSLToColor((hue + 0.3) % 1, 0.6, 0.15).color;
+          this.drawBackground(color1, color2);
+
+          if (this.feverTimer <= 0) {
+            this.endFever();
+          }
+        }
+
+        // 落下物の更新＆画面外チェック
+        this.itemsGroup.getChildren().forEach(item => {
+          if (!item || !item.active) return;
+
+          // 物理ボディのフォールバック移動（確実に落下させる）
+          if (item.body && item.body.velocity.y === 0) {
+            const fallSpeed = this.isFever ? 360 : this.currentSpeed;
+            item.body.setVelocityY(fallSpeed);
+          }
+
+          // 画面外（下端）到達チェック
+          if (item.y > this.scale.height + 40) {
+            if (item.itemData && !item.itemData.isDanger) {
+              // ごちそうを見逃した場合 ➔ コンボリセット（ペナルティ）
+              if (this.combo > 0) {
+                this.resetCombo();
+              }
+            }
+            item.destroy();
+          }
+        });
+      }
+
+      spawnItem() {
+        if (this.isGameOver) return;
+        const { width } = this.scale;
+        const x = Phaser.Math.Between(50, width - 50);
+        const y = -30;
+
+        let itemData;
+        const isDangerSpawn = !this.isFever && Math.random() < this.dangerRatio;
+
+        if (isDangerSpawn) {
+          // キケン物から抽選
+          const dangerObj = Phaser.Utils.Array.GetRandom(DANGER_ITEMS);
+          itemData = { ...dangerObj, isDanger: true };
+        } else {
+          // ごちそうから抽選（ウェイト抽選）
+          const totalWeight = FOOD_ITEMS.reduce((sum, item) => sum + item.weight, 0);
+          let rand = Phaser.Math.Between(1, totalWeight);
+          for (const f of FOOD_ITEMS) {
+            rand -= f.weight;
+            if (rand <= 0) {
+              itemData = { ...f, isDanger: false };
+              break;
+            }
+          }
+        }
+
+        if (!itemData) itemData = { ...FOOD_ITEMS[0], isDanger: false };
+
+        const item = this.add.text(x, y, itemData.emoji, {
+          fontSize: '44px',
+          fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif'
+        }).setOrigin(0.5).setDepth(10);
+
+        this.physics.add.existing(item);
+        item.itemData = itemData;
+
+        // 当たり判定のプレイヤー有利チート調整
+        if (itemData.isDanger) {
+          item.body.setCircle(18, 4, 4); // キケン物は小さめ（60%）
+        } else {
+          item.body.setCircle(26, -2, -2); // ごちそうは大きめ（120%）
+        }
+
+        const fallSpeed = this.isFever ? 360 : this.currentSpeed;
+        item.body.setVelocityY(fallSpeed);
+
+        // ゆらゆら回転アニメーション
+        this.tweens.add({
+          targets: item,
+          angle: { from: -10, to: 10 },
+          duration: 400,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+
+        this.itemsGroup.add(item);
+      }
+
+      handleItemCatch(player, item) {
+        if (!item.active || this.isGameOver) return;
+        const data = item.itemData;
+        const itemX = item.x;
+        const itemY = item.y;
+        item.destroy();
+
+        if (data.isDanger) {
+          // キケン物に接触
+          if (this.isInvincible || this.isFever) {
+            // 無敵またはフィーバー中はキケン物を弾く
+            this.showFloatingText(itemX, itemY, 'GUARD! 🛡️', '#00F0FF');
+            soundManager.playPop();
+            this.starEmitter.explode(8, itemX, itemY);
+            return;
+          }
+          this.handleDamage(data);
+        } else {
+          // ごちそうをキャッチ！
+          this.handleFoodCatch(data, itemX, itemY);
+        }
+      }
+
+      handleFoodCatch(data, x, y) {
+        // コンボ加算
+        this.combo++;
+        let multiplier = 1.0;
+        if (this.combo >= 20) multiplier = 3.0;
+        else if (this.combo >= 10) multiplier = 2.0;
+        else if (this.combo >= 5) multiplier = 1.5;
+
+        const earnedScore = Math.round(data.score * multiplier);
+        this.score += earnedScore;
+        this.scoreText.setText(`SCORE: ${this.score}`);
+
+        // サウンド再生（音程上昇）
+        soundManager.playCatch(this.combo);
+
+        // ネコの表情を😋に変更
+        this.setCatState('happy');
+
+        // パーティクル放出
+        this.pawEmitter.explode(6, x, y);
+        this.starEmitter.explode(10, x, y);
+
+        // フローティング褒めテキスト
+        const multText = multiplier > 1.0 ? ` (${multiplier}x)` : '';
+        const popupMsg = `+${earnedScore}${multText}\n${data.msg}`;
+        this.showFloatingText(this.player.x, this.player.y - 45, popupMsg, '#FFDF6D');
+
+        // コンボ表示演出
+        if (this.combo >= 3) {
+          this.showComboBanner();
+        }
+
+        // またたび（フィーバー発動）
+        if (data.isFever) {
+          this.startFever();
+        }
+      }
+
+      handleDamage(data) {
+        this.lives--;
+        this.updateLifeDisplay();
+        this.resetCombo();
+
+        // ネコ表情を🙀に変更＋無敵化
+        this.setCatState('damage');
+        soundManager.playDamage();
+
+        // 画面揺れ & 赤フラッシュ
+        this.cameras.main.shake(250, 0.025);
+        this.cameras.main.flash(200, 255, 60, 60);
+
+        // 浮遊注意テキスト
+        this.showFloatingText(this.player.x, this.player.y - 45, `-1 LIFE!\n${data.msg}`, '#FF3366');
+
+        if (this.lives <= 0) {
+          this.triggerGameOver();
+        } else {
+          // 無敵点滅時間（1000ms）
+          this.isInvincible = true;
+          this.tweens.add({
+            targets: this.player,
+            alpha: 0.3,
+            duration: 100,
+            yoyo: true,
+            repeat: 5,
+            onComplete: () => {
+              this.player.alpha = 1;
+              this.isInvincible = false;
+            }
+          });
+        }
+      }
+
+      setCatState(state) {
+        if (this.catState === 'fever' && state !== 'fever') return;
+        this.catState = state;
+
+        if (this.stateResetTimer) {
+          this.stateResetTimer.remove();
+          this.stateResetTimer = null;
+        }
+
+        if (state === 'happy') {
+          this.player.setText('😋');
+          this.stateResetTimer = this.time.delayedCall(400, () => {
+            if (!this.isGameOver && !this.isFever) {
+              this.player.setText('😺');
+              this.catState = 'normal';
+            }
+          });
+        } else if (state === 'damage') {
+          this.player.setText('🙀');
+          this.stateResetTimer = this.time.delayedCall(800, () => {
+            if (!this.isGameOver && !this.isFever) {
+              this.player.setText('😺');
+              this.catState = 'normal';
+            }
+          });
+        } else if (state === 'fever') {
+          this.player.setText('😻');
+        } else {
+          this.player.setText('😺');
+        }
+      }
+
+      startFever() {
+        this.isFever = true;
+        this.feverTimer = 3000;
+        this.setCatState('fever');
+        soundManager.playFever();
+
+        // 画面上の既存キケン物を消去＆星に変換
+        this.itemsGroup.getChildren().forEach(item => {
+          if (item.active && item.itemData && item.itemData.isDanger) {
+            this.starEmitter.explode(8, item.x, item.y);
+            item.destroy();
+          }
+        });
+
+        // フィーバー告知
+        this.showFloatingText(this.scale.width / 2, 350, '✨ FEVER TIME!! ✨\n無敵ラッシュニャ！', '#FF007F', 400, 32);
+        this.feverBar.setAlpha(1);
+      }
+
+      endFever() {
+        this.isFever = false;
+        this.feverBar.setAlpha(0);
+        this.drawBackground(0x1B162C, 0x0F0C1B);
+        this.player.setText('😺');
+        this.catState = 'normal';
+      }
+
+      updateFeverBar(ratio) {
+        const { width } = this.scale;
+        this.feverBar.clear();
+        this.feverBar.fillStyle(0xFF007F, 0.8);
+        this.feverBar.fillRect(0, 0, width * ratio, 6);
+      }
+
+      showComboBanner() {
+        this.comboBanner.setText(`${this.combo} COMBO! 🔥`);
+        this.comboBanner.setAlpha(1).setScale(1.3);
+        this.tweens.killTweensOf(this.comboBanner);
+        this.tweens.add({
+          targets: this.comboBanner,
+          scale: 1,
+          alpha: { from: 1, to: 0 },
+          duration: 1000,
+          ease: 'Power2'
+        });
+      }
+
+      resetCombo() {
+        if (this.combo >= 3) {
+          this.showFloatingText(this.player.x, this.player.y - 70, 'COMBO BREAK...', '#A0A0A0', 300, 16);
+        }
+        this.combo = 0;
+      }
+
+      updateLifeDisplay() {
+        let hearts = '';
+        for (let i = 0; i < 3; i++) {
+          hearts += i < this.lives ? '❤️' : '🖤';
+        }
+        this.lifeText.setText(hearts);
+      }
+
+      showFloatingText(x, y, message, color = '#FFFFFF', duration = 800, fontSize = 20) {
+        const text = this.add.text(x, y, message, {
+          fontSize: `${fontSize}px`,
+          fontWeight: '900',
+          fill: color,
+          stroke: '#000000',
+          strokeThickness: 4,
+          align: 'center'
+        }).setOrigin(0.5).setDepth(60);
+
+        this.tweens.add({
+          targets: text,
+          y: y - 60,
+          alpha: { from: 1, to: 0 },
+          scale: { from: 1.1, to: 0.9 },
+          duration: duration,
+          ease: 'Power1',
+          onComplete: () => text.destroy()
+        });
+      }
+
+      triggerGameOver() {
+        this.isGameOver = true;
+        this.player.setText('😿');
+        soundManager.stopBGM();
+        soundManager.playGameOver();
+
+        // ハイスコア更新判定
+        let isNewHigh = false;
+        if (this.score > this.highScore) {
+          this.highScore = this.score;
+          localStorage.setItem('cat_catch_highscore', this.highScore);
+          isNewHigh = true;
+        }
+
+        // わずかな遅延ののちゲームオーバーモーダル表示
+        this.time.delayedCall(700, () => {
+          this.showGameOverModal(isNewHigh);
+        });
+      }
+
+      showGameOverModal(isNewHigh) {
+        const { width, height } = this.scale;
+
+        // 半透明暗転
+        const overlay = this.add.graphics().setDepth(200);
+        overlay.fillStyle(0x000000, 0.75);
+        overlay.fillRect(0, 0, width, height);
+
+        const card = this.add.graphics().setDepth(201);
+        card.fillStyle(0x231E39, 1);
+        card.fillRoundedRect(width / 2 - 180, height / 2 - 220, 360, 440, 24);
+        card.lineStyle(4, isNewHigh ? 0xFFD700 : 0xFF6B8B, 1);
+        card.strokeRoundedRect(width / 2 - 180, height / 2 - 220, 360, 440, 24);
+
+        // 泣き顔ネコ
+        this.add.text(width / 2, height / 2 - 165, '😿💧', {
+          fontSize: '56px'
+        }).setOrigin(0.5).setDepth(202);
+
+        this.add.text(width / 2, height / 2 - 105, 'GAME OVER', {
+          fontSize: '30px',
+          fontWeight: '900',
+          fill: '#FF6B8B',
+          stroke: '#000',
+          strokeThickness: 5
+        }).setOrigin(0.5).setDepth(202);
+
+        // 今回スコア
+        this.add.text(width / 2, height / 2 - 45, 'SCORE', {
+          fontSize: '16px',
+          fill: '#A5A1BE'
+        }).setOrigin(0.5).setDepth(202);
+
+        this.add.text(width / 2, height / 2 - 15, `${this.score}`, {
+          fontSize: '44px',
+          fontWeight: '900',
+          fill: '#FFFFFF',
+          stroke: '#000',
+          strokeThickness: 6
+        }).setOrigin(0.5).setDepth(202);
+
+        // ハイスコア表示
+        const highText = this.add.text(width / 2, height / 2 + 40, `👑 BEST: ${this.highScore} PTS`, {
+          fontSize: '20px',
+          fontWeight: 'bold',
+          fill: isNewHigh ? '#FFD700' : '#E0E0E0'
+        }).setOrigin(0.5).setDepth(202);
+
+        if (isNewHigh) {
+          const newRecBadge = this.add.text(width / 2, height / 2 + 75, '🎉 NEW RECORD! 🎉', {
+            fontSize: '18px',
+            fontWeight: '900',
+            fill: '#FFD700',
+            stroke: '#B8860B',
+            strokeThickness: 3
+          }).setOrigin(0.5).setDepth(203);
+
+          this.tweens.add({
+            targets: newRecBadge,
+            scale: { from: 0.9, to: 1.15 },
+            duration: 500,
+            yoyo: true,
+            repeat: -1
+          });
+
+          this.starEmitter.explode(25, width / 2, height / 2 - 20);
+        }
+
+        // リトライボタン
+        const retryBtn = this.add.graphics().setDepth(202);
+        retryBtn.fillStyle(0xFF4D6D, 1);
+        retryBtn.fillRoundedRect(width / 2 - 140, height / 2 + 110, 280, 48, 24);
+
+        const retryText = this.add.text(width / 2, height / 2 + 134, '🔄 もう一度あそぶニャ！', {
+          fontSize: '18px',
+          fontWeight: '900',
+          fill: '#FFFFFF'
+        }).setOrigin(0.5).setDepth(203);
+
+        const retryZone = this.add.zone(width / 2, height / 2 + 134, 280, 48).setInteractive({ useHandCursor: true }).setDepth(204);
+        retryZone.on('pointerdown', () => {
+          soundManager.playPop();
+          this.scene.restart();
+        });
+
+        // X（Twitter）シェアボタン
+        const shareBtn = this.add.graphics().setDepth(202);
+        shareBtn.fillStyle(0x1DA1F2, 1);
+        shareBtn.fillRoundedRect(width / 2 - 140, height / 2 + 168, 280, 44, 22);
+
+        const shareText = this.add.text(width / 2, height / 2 + 190, '🐾 X（Twitter）でシェア', {
+          fontSize: '16px',
+          fontWeight: '900',
+          fill: '#FFFFFF'
+        }).setOrigin(0.5).setDepth(203);
+
+        const shareZone = this.add.zone(width / 2, height / 2 + 190, 280, 44).setInteractive({ useHandCursor: true }).setDepth(204);
+        shareZone.on('pointerdown', () => {
+          soundManager.playPop();
+          this.shareOnX();
+        });
+      }
+
+      shareOnX() {
+        const text = `『キャッチミーイフユーニャン』でスコア【${this.score}点】（最高: ${this.highScore}点）を達成したニャ！🐾\nネコまっしぐらフィーバー！\n#キャッチミーイフユーニャン #Phaser3`;
+        const url = window.location.href;
+        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+        window.open(twitterUrl, '_blank');
+      }
+    }
+
+    /* ==========================================================================
+       5. Phaser ゲームインスタンス初期化
+       ========================================================================== */
+    const config = {
+      type: Phaser.AUTO,
+      width: 450,
+      height: 800,
+      parent: 'game-container',
+      backgroundColor: '#121019',
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+      },
+      physics: {
+        default: 'arcade',
+        arcade: {
+          gravity: { y: 0 },
+          debug: false
+        }
+      },
+      scene: [BootScene, TitleScene, MainGameScene]
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      new Phaser.Game(config);
+    });
+  </script>
+</body>
+</html>
