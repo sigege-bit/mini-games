@@ -7,7 +7,7 @@
   <meta name="description" content="A・イシオ（@sigege）制作のハイパーカジュアルWebミニゲームポータル。積む積む、キャッチミーイフユーニャン、超人サッカー、闘犬乱舞、花のピョンピョン丸など全5作品がブラウザですぐに遊べます！">
   <meta name="theme-color" content="#0a0a14">
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts: font-display=swap によるゼロ遅延・即時描画 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&family=Orbitron:wght@600;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -35,8 +35,9 @@
       --text-muted: #94a3b8;
       --text-dim: #64748b;
 
-      --font-display: 'Orbitron', -apple-system, sans-serif;
-      --font-body: 'Plus Jakarta Sans', 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      /* 高速描画のためのフォントスタック（システムフォント最優先フォールバック） */
+      --font-display: 'Orbitron', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-body: 'Plus Jakarta Sans', 'M PLUS Rounded 1c', system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
     }
 
     * {
@@ -56,6 +57,7 @@
       line-height: 1.6;
       display: flex;
       flex-direction: column;
+      font-display: swap;
     }
 
     /* ==========================================================================
@@ -133,20 +135,21 @@
     }
 
     /* ==========================================================================
-       HEADER & NAVIGATION
+       HEADER & PILL SEGMENTED CONTROLS
        ========================================================================== */
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px 24px;
-      background: rgba(15, 17, 30, 0.6);
+      padding: 14px 22px;
+      background: rgba(15, 17, 30, 0.7);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border-subtle);
-      border-radius: 20px;
-      margin-bottom: 40px;
+      border-radius: 24px;
+      margin-bottom: 36px;
       box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+      gap: 16px;
     }
 
     .brand-logo {
@@ -155,6 +158,7 @@
       gap: 12px;
       text-decoration: none;
       color: inherit;
+      flex-shrink: 0;
     }
 
     .brand-icon {
@@ -203,33 +207,64 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
-    .control-btn {
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-main);
-      padding: 8px 14px;
-      border-radius: 12px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
+    /* --- Pill Segmented Control UI --- */
+    .pill-group {
+      display: inline-flex;
       align-items: center;
-      gap: 6px;
+      background: rgba(8, 10, 20, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 50px;
+      padding: 3px;
+      position: relative;
+      user-select: none;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5), 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .pill-segment {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 6px 12px;
+      border-radius: 40px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      background: transparent;
+      border: none;
+      cursor: pointer;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       font-family: var(--font-body);
+      white-space: nowrap;
+      opacity: 0.5;
     }
 
-    .control-btn:hover {
-      background: rgba(255, 255, 255, 0.12);
-      border-color: var(--neon-cyan);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(0, 242, 254, 0.25);
+    .pill-segment:hover {
+      color: var(--text-main);
+      opacity: 0.85;
     }
 
-    .control-btn:active {
-      transform: translateY(0);
+    /* Active Segment with Cyber Neon Highlight */
+    .pill-segment.active {
+      color: #ffffff;
+      opacity: 1;
+      font-weight: 800;
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.25), rgba(79, 172, 254, 0.4));
+      border: 1px solid rgba(0, 242, 254, 0.7);
+      box-shadow: 0 0 15px rgba(0, 242, 254, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+      text-shadow: 0 0 8px rgba(0, 242, 254, 0.6);
+    }
+
+    .pill-segment.active.off {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: none;
+      text-shadow: none;
+      color: #cbd5e1;
     }
 
     /* ==========================================================================
@@ -766,33 +801,47 @@
        ========================================================================== */
     @media (max-width: 768px) {
       .app-container {
-        padding: 16px 14px 40px;
+        padding: 14px 12px 36px;
       }
       header {
-        padding: 12px 16px;
-        margin-bottom: 28px;
+        padding: 12px 14px;
+        margin-bottom: 24px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
+      .brand-logo {
+        justify-content: center;
       }
       .brand-text h1 {
-        font-size: 1rem;
+        font-size: 1.05rem;
+      }
+      .nav-controls {
+        justify-content: center;
+        gap: 8px;
+      }
+      .pill-segment {
+        padding: 5px 9px;
+        font-size: 0.75rem;
       }
       .hero {
-        padding: 10px 0 36px;
+        padding: 10px 0 32px;
       }
       .games-grid {
-        gap: 22px;
+        gap: 20px;
       }
       .game-card {
         flex: 1 1 100%;
         max-width: 100%;
       }
       .card-visual {
-        height: 150px;
+        height: 145px;
       }
       .game-main-emoji {
-        font-size: 4.2rem;
+        font-size: 4rem;
       }
       .card-body {
-        padding: 18px 20px 20px;
+        padding: 16px 18px 18px;
       }
     }
   </style>
@@ -817,16 +866,33 @@
         </div>
       </a>
 
+      <!-- Pill-Segmented Controls: Sound & Language -->
       <div class="nav-controls">
-        <button id="sound-btn" class="control-btn" aria-label="Toggle Sound" title="Sound Toggle">
-          <span id="sound-icon">🔊</span>
-          <span id="sound-label" data-i18n="sound-on">SFX ON</span>
-        </button>
+        
+        <!-- Sound Toggle Pill -->
+        <div class="pill-group" id="sound-pill-group" role="group" aria-label="Sound Toggle">
+          <button type="button" class="pill-segment active" id="btn-sound-on" title="Sound Effects ON">
+            <span>🔊</span>
+            <span data-i18n="sfx-on-label">ON</span>
+          </button>
+          <button type="button" class="pill-segment" id="btn-sound-off" title="Sound Effects OFF">
+            <span>🔇</span>
+            <span data-i18n="sfx-off-label">OFF</span>
+          </button>
+        </div>
 
-        <button id="lang-btn" class="control-btn" aria-label="Switch Language" title="Language Switch">
-          <span id="lang-flag">🇺🇸</span>
-          <span id="lang-label">ENGLISH</span>
-        </button>
+        <!-- Language Toggle Pill -->
+        <div class="pill-group" id="lang-pill-group" role="group" aria-label="Language Selector">
+          <button type="button" class="pill-segment active" id="btn-lang-ja" title="日本語で表示">
+            <span>🇯🇵</span>
+            <span>日本語</span>
+          </button>
+          <button type="button" class="pill-segment" id="btn-lang-en" title="Display in English">
+            <span>🇺🇸</span>
+            <span>English</span>
+          </button>
+        </div>
+
       </div>
     </header>
 
@@ -1055,8 +1121,8 @@
       const translations = {
         ja: {
           "header-tag": "ハイパーカジュアルWebゲーム集",
-          "sound-on": "SFX ON",
-          "sound-off": "SFX OFF",
+          "sfx-on-label": "ON",
+          "sfx-off-label": "OFF",
           "hero-badge": "✨ 全5作品のカジュアルWebゲーム",
           "hero-title-1": "サクッと遊べて、",
           "hero-title-2": "ドハマりする爽快感。",
@@ -1100,8 +1166,8 @@
         },
         en: {
           "header-tag": "Hyper-Casual Web Games",
-          "sound-on": "SFX ON",
-          "sound-off": "SFX OFF",
+          "sfx-on-label": "ON",
+          "sfx-off-label": "OFF",
           "hero-badge": "✨ 5 PLAYABLE CASUAL WEB GAMES",
           "hero-title-1": "Play Fast,",
           "hero-title-2": "Feel The Rush.",
@@ -1149,7 +1215,7 @@
          SYNTHESIZED SOUND EFFECTS (Web Audio API - Zero Asset)
          ========================================================================== */
       let audioCtx = null;
-      let soundEnabled = true;
+      let soundEnabled = (localStorage.getItem('shigege_portal_sfx') !== 'false');
 
       function getAudioContext() {
         if (!audioCtx) {
@@ -1200,13 +1266,52 @@
             osc.stop(now + 0.25);
           }
         } catch (e) {
-          // Audio autoplay policies or error catch
+          // Audio autoplay policy catch
         }
       }
 
       /* ==========================================================================
-         LANGUAGE TOGGLE LOGIC
+         SOUND PILL SEGMENT TOGGLE
          ========================================================================== */
+      const btnSoundOn = document.getElementById('btn-sound-on');
+      const btnSoundOff = document.getElementById('btn-sound-off');
+
+      function updateSoundUI(enabled) {
+        soundEnabled = enabled;
+        localStorage.setItem('shigege_portal_sfx', enabled ? 'true' : 'false');
+
+        if (enabled) {
+          btnSoundOn.classList.add('active');
+          btnSoundOn.classList.remove('off');
+          btnSoundOff.classList.remove('active', 'off');
+        } else {
+          btnSoundOff.classList.add('active', 'off');
+          btnSoundOn.classList.remove('active');
+        }
+      }
+
+      btnSoundOn.addEventListener('click', () => {
+        if (!soundEnabled) {
+          updateSoundUI(true);
+          playSound('click');
+        }
+      });
+
+      btnSoundOff.addEventListener('click', () => {
+        if (soundEnabled) {
+          playSound('click');
+          updateSoundUI(false);
+        }
+      });
+
+      // Initial sound state
+      updateSoundUI(soundEnabled);
+
+      /* ==========================================================================
+         LANGUAGE PILL SEGMENT TOGGLE
+         ========================================================================== */
+      const btnLangJa = document.getElementById('btn-lang-ja');
+      const btnLangEn = document.getElementById('btn-lang-en');
       let currentLang = localStorage.getItem('shigege_portal_lang') || 'ja';
 
       function updateLanguage(lang) {
@@ -1222,41 +1327,32 @@
           }
         });
 
-        // Update Toggle Button UI
-        const langFlag = document.getElementById('lang-flag');
-        const langLabel = document.getElementById('lang-label');
+        // Update Pill UI
         if (lang === 'ja') {
-          langFlag.textContent = '🇺🇸';
-          langLabel.textContent = 'ENGLISH';
+          btnLangJa.classList.add('active');
+          btnLangEn.classList.remove('active');
         } else {
-          langFlag.textContent = '🇯🇵';
-          langLabel.textContent = '日本語';
+          btnLangEn.classList.add('active');
+          btnLangJa.classList.remove('active');
         }
-
-        // Update sound label
-        const soundLabel = document.getElementById('sound-label');
-        soundLabel.textContent = soundEnabled ? langData['sound-on'] : langData['sound-off'];
       }
 
-      const langBtn = document.getElementById('lang-btn');
-      langBtn.addEventListener('click', () => {
-        playSound('click');
-        const nextLang = currentLang === 'ja' ? 'en' : 'ja';
-        updateLanguage(nextLang);
+      btnLangJa.addEventListener('click', () => {
+        if (currentLang !== 'ja') {
+          playSound('click');
+          updateLanguage('ja');
+        }
       });
 
-      // Sound Toggle Button
-      const soundBtn = document.getElementById('sound-btn');
-      const soundIcon = document.getElementById('sound-icon');
-      const soundLabel = document.getElementById('sound-label');
-
-      soundBtn.addEventListener('click', () => {
-        soundEnabled = !soundEnabled;
-        soundIcon.textContent = soundEnabled ? '🔊' : '🔇';
-        const langData = translations[currentLang] || translations.ja;
-        soundLabel.textContent = soundEnabled ? langData['sound-on'] : langData['sound-off'];
-        if (soundEnabled) playSound('click');
+      btnLangEn.addEventListener('click', () => {
+        if (currentLang !== 'en') {
+          playSound('click');
+          updateLanguage('en');
+        }
       });
+
+      // Initial language state
+      updateLanguage(currentLang);
 
       /* ==========================================================================
          RANDOM PLAY BUTTON
@@ -1288,12 +1384,9 @@
         });
       });
 
-      document.querySelectorAll('.btn-play, .control-btn').forEach(btn => {
+      document.querySelectorAll('.btn-play, .pill-segment, .btn-random').forEach(btn => {
         btn.addEventListener('mouseenter', () => {
           playSound('hover');
-        });
-        btn.addEventListener('click', () => {
-          playSound('click');
         });
       });
 
@@ -1312,7 +1405,7 @@
 
       const particleColors = ['#00f2fe', '#4facfe', '#ff007f', '#9d4edd', '#ff9f1c'];
       const particles = [];
-      const PARTICLE_COUNT = Math.min(40, Math.floor(window.innerWidth / 30));
+      const PARTICLE_COUNT = Math.min(36, Math.floor(window.innerWidth / 32));
 
       for (let i = 0; i < PARTICLE_COUNT; i++) {
         particles.push({
@@ -1373,9 +1466,6 @@
       }
 
       renderParticles();
-
-      // Initialize initial language
-      updateLanguage(currentLang);
 
     })();
   </script>
