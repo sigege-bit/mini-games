@@ -2,326 +2,399 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>闘犬乱舞</title>
-  <!-- Google Fonts: 和風フォント -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Yuji+Boku&family=Zen+Antique+Soft&family=Zen+Old+Mincho:wght@700;900&display=swap" rel="stylesheet">
-  <!-- Phaser 3.80.1 CDN -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>闘犬乱舞 - Doggy Slash | Shigege Games</title>
+  <meta name="description" content="飛び交う食材や絵文字を一筆両断！爽快な一刀両断アクションゲーム『闘犬乱舞』。">
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-4EBNDS3X7P');
+  </script>
+
+  <!-- Phaser 3 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+
   <style>
     * {
-      box-sizing: border-box;
       margin: 0;
       padding: 0;
+      box-sizing: border-box;
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
     }
-    body, html {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #08080c;
-      font-family: 'Zen Antique Soft', 'Zen Old Mincho', 'Yuji Boku', serif;
-      touch-action: none;
-    }
-    #game-container {
-      width: 100vw;
-      height: 100vh;
+    body {
+      background: #06070d;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
-      background: radial-gradient(circle at center, #1b162b 0%, #08070d 100%);
+      min-height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #game-container {
+      position: relative;
+      width: 100vw;
+      max-width: 480px;
+      height: 100vh;
+      max-height: 800px;
+      box-shadow: 0 0 35px rgba(239, 68, 68, 0.25), 0 0 50px rgba(0, 0, 0, 0.9);
+      overflow: hidden;
+      background: #0d0a14;
     }
     canvas {
-      box-shadow: 0 0 35px rgba(255, 60, 0, 0.25), 0 0 80px rgba(0, 0, 0, 0.9);
-      border-radius: 4px;
+      display: block;
+      margin: auto;
+      touch-action: none;
     }
   </style>
 </head>
 <body>
-  <div id="game-container"></div>
 
-  <script>
-    /* ==========================================================================
-       SoundManager: Web Audio API プロシージャル和風サウンドエンジン
-       ========================================================================== */
-    class SoundManager {
-      constructor() {
-        this.ctx = null;
-        this.isMuted = false;
-        this.bgmTimer = null;
-        this.bgmStep = 0;
-        this.isBgmPlaying = false;
-        // 和風 都節・陽音階 (ラ, シ, ド, ミ, ファ / A, B, C, E, F)
-        this.scale = [220, 246.94, 261.63, 329.63, 349.23, 440, 493.88, 523.25, 659.25, 698.46, 880];
+<div id="game-container"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ==========================================
+  // 1. 共通定数・ローカライズ辞書
+  // ==========================================
+  let currentLang = localStorage.getItem('shigege_game_lang') || ((navigator.language && navigator.language.startsWith('ja')) ? 'ja' : 'en');
+  let soundEnabled = (localStorage.getItem('shigege_game_sfx') !== 'false');
+
+  const I18N = {
+    ja: {
+      title: "闘犬乱舞",
+      subTitle: "飛び交う絵文字を一筆両断！爽快スラッシュ！",
+      howToPlay: "【 あそびかた 】",
+      rule1: "👆 スワイプで刀筋を描いて食材を一刀両断！",
+      rule2: "⚡ 同時斬りでコンボ＆金の龍🐉で大量得点！",
+      rule3: "🛡️ 💣爆弾斬撃、または見逃し3回で終了",
+      startBtn: "🎮 ゲームスタート",
+      gameOver: "GAME OVER",
+      score: "SCORE",
+      bestScore: "BEST SCORE",
+      rank: "闘犬称号",
+      retryBtn: "🔄 もう一回",
+      shareBtn: "🐦 Xにポスト",
+      titleBtn: "🏠 タイトルへ",
+      portalBtn: "🌐 他のゲームで遊ぶ",
+      missText: "見逃し！",
+      rank1: "門下生",
+      rank2: "見習い闘犬士",
+      rank3: "一人前闘犬士",
+      rank4: "凄腕闘犬士",
+      rank5: "神速の犬使い",
+      rank6: "天下無双・闘犬王",
+      shareText: "【闘犬乱舞】でスコア {score} 閃（称号: {rank}）を達成！ #ShigegeGames"
+    },
+    en: {
+      title: "DOGGY SLASH",
+      subTitle: "Slash flying emojis with ninja precision!",
+      howToPlay: "【 HOW TO PLAY 】",
+      rule1: "👆 Swipe to draw blade trail and slice targets!",
+      rule2: "⚡ Multi-slice for Combos & Golden Dragon 🐉 bonus!",
+      rule3: "🛡️ Avoid slicing 💣 Bombs or missing 3 targets!",
+      startBtn: "🎮 TAP TO START",
+      gameOver: "GAME OVER",
+      score: "SCORE",
+      bestScore: "BEST SCORE",
+      rank: "RANK",
+      retryBtn: "🔄 RETRY",
+      shareBtn: "🐦 SHARE ON X",
+      titleBtn: "🏠 TITLE",
+      portalBtn: "🌐 MORE GAMES",
+      missText: "MISS!",
+      rank1: "Novice",
+      rank2: "Apprentice",
+      rank3: "Blade Dog",
+      rank4: "Master Slasher",
+      rank5: "Godspeed Ninja",
+      rank6: "Grand Swordmaster",
+      shareText: "I slashed {score} pts (Rank: {rank}) in 【Doggy Slash】! #ShigegeGames"
+    }
+  };
+
+  // ==========================================
+  // 2. Web Audio API サウンドマネージャー
+  // ==========================================
+  class SoundManager {
+    static ctx = null;
+    static bgmTimer = null;
+    static bgmStep = 0;
+    static isBgmPlaying = false;
+    static scale = [220, 246.94, 261.63, 329.63, 349.23, 440, 493.88, 523.25, 659.25, 698.46, 880];
+
+    static init() {
+      if (!this.ctx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) this.ctx = new AudioContextClass();
       }
+    }
 
-      init() {
-        if (!this.ctx) {
-          const AudioContext = window.AudioContext || window.webkitAudioContext;
-          if (AudioContext) {
-            this.ctx = new AudioContext();
-          }
+    static resume() {
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
+    }
+
+    static playSwish(speedFactor = 1.0) {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      try {
+        const t = this.ctx.currentTime;
+        const bufferSize = Math.floor(this.ctx.sampleRate * 0.08);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
         }
-        if (this.ctx && this.ctx.state === 'suspended') {
-          this.ctx.resume();
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.Q.setValueAtTime(3.0, t);
+        const startFreq = 400 * Math.min(speedFactor, 2.5);
+        filter.frequency.setValueAtTime(startFreq, t);
+        filter.frequency.exponentialRampToValueAtTime(1400 * Math.min(speedFactor, 2.5), t + 0.04);
+        filter.frequency.exponentialRampToValueAtTime(300, t + 0.08);
+
+        const gain = this.ctx.createGain();
+        const vol = Math.min(0.25 * speedFactor, 0.4);
+        gain.gain.setValueAtTime(vol, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        noise.start(t);
+        noise.stop(t + 0.08);
+      } catch (e) {}
+    }
+
+    static playSlice(pitchMod = 1.0) {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      try {
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(850 * pitchMod, t);
+        osc.frequency.exponentialRampToValueAtTime(120 * pitchMod, t + 0.12);
+
+        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+        const mod = this.ctx.createOscillator();
+        const modGain = this.ctx.createGain();
+        mod.type = 'sine';
+        mod.frequency.setValueAtTime(1200 * pitchMod, t);
+        modGain.gain.setValueAtTime(600 * pitchMod, t);
+        modGain.gain.exponentialRampToValueAtTime(10, t + 0.1);
+
+        mod.connect(osc.frequency);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        mod.start(t);
+        osc.start(t);
+        mod.stop(t + 0.12);
+        osc.stop(t + 0.12);
+      } catch (e) {}
+    }
+
+    static playCombo(comboCount) {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      try {
+        const t = this.ctx.currentTime;
+        const hyoshigi = this.ctx.createOscillator();
+        const hyoGain = this.ctx.createGain();
+        hyoshigi.type = 'sine';
+        const freq = 1400 + Math.min(comboCount * 120, 1000);
+        hyoshigi.frequency.setValueAtTime(freq, t);
+        hyoshigi.frequency.exponentialRampToValueAtTime(freq * 0.8, t + 0.08);
+
+        hyoGain.gain.setValueAtTime(0.4, t);
+        hyoGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+        hyoshigi.connect(hyoGain);
+        hyoGain.connect(this.ctx.destination);
+        hyoshigi.start(t);
+        hyoshigi.stop(t + 0.14);
+
+        const taiko = this.ctx.createOscillator();
+        const taiGain = this.ctx.createGain();
+        taiko.type = 'triangle';
+        taiko.frequency.setValueAtTime(160, t);
+        taiko.frequency.exponentialRampToValueAtTime(35, t + 0.25);
+
+        taiGain.gain.setValueAtTime(0.45, t);
+        taiGain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+
+        taiko.connect(taiGain);
+        taiGain.connect(this.ctx.destination);
+        taiko.start(t);
+        taiko.stop(t + 0.25);
+      } catch (e) {}
+    }
+
+    static playBomb() {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      try {
+        const t = this.ctx.currentTime;
+        const bufferSize = Math.floor(this.ctx.sampleRate * 0.7);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.22));
         }
-      }
 
-      toggleMute() {
-        this.isMuted = !this.isMuted;
-        if (this.isMuted) {
-          this.stopBgm();
-        } else {
-          this.startBgm();
-        }
-        return this.isMuted;
-      }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
 
-      // スワイプ風切り音 (Swish)
-      playSwish(speedFactor = 1.0) {
-        if (this.isMuted || !this.ctx) return;
-        try {
-          const t = this.ctx.currentTime;
-          const bufferSize = Math.floor(this.ctx.sampleRate * 0.09);
-          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-          const data = buffer.getChannelData(0);
-          for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-          }
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(450, t);
+        filter.frequency.exponentialRampToValueAtTime(40, t + 0.7);
 
-          const noise = this.ctx.createBufferSource();
-          noise.buffer = buffer;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.65, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
 
-          const filter = this.ctx.createBiquadFilter();
-          filter.type = 'bandpass';
-          filter.Q.setValueAtTime(3.0, t);
-          const startFreq = 400 * Math.min(speedFactor, 2.5);
-          filter.frequency.setValueAtTime(startFreq, t);
-          filter.frequency.exponentialRampToValueAtTime(1400 * Math.min(speedFactor, 2.5), t + 0.05);
-          filter.frequency.exponentialRampToValueAtTime(300, t + 0.09);
+        const sub = this.ctx.createOscillator();
+        const subGain = this.ctx.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(90, t);
+        sub.frequency.exponentialRampToValueAtTime(20, t + 0.6);
+        subGain.gain.setValueAtTime(0.7, t);
+        subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
 
-          const gain = this.ctx.createGain();
-          const vol = Math.min(0.28 * speedFactor, 0.45);
-          gain.gain.setValueAtTime(vol, t);
-          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
 
-          noise.connect(filter);
-          filter.connect(gain);
-          gain.connect(this.ctx.destination);
+        sub.connect(subGain);
+        subGain.connect(this.ctx.destination);
 
-          noise.start(t);
-          noise.stop(t + 0.09);
-        } catch (e) {}
-      }
+        noise.start(t);
+        sub.start(t);
+        noise.stop(t + 0.7);
+        sub.stop(t + 0.7);
+      } catch (e) {}
+    }
 
-      // 鋭い斬撃音 (金属音 + FM変調)
-      playSlice(pitchMod = 1.0) {
-        if (this.isMuted || !this.ctx) return;
-        try {
-          const t = this.ctx.currentTime;
+    static playDragon() {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
 
-          // キャリア
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(850 * pitchMod, t);
-          osc.frequency.exponentialRampToValueAtTime(120 * pitchMod, t + 0.12);
-
-          gain.gain.setValueAtTime(0.35, t);
-          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-
-          // モジュレータ
-          const mod = this.ctx.createOscillator();
-          const modGain = this.ctx.createGain();
-          mod.type = 'sine';
-          mod.frequency.setValueAtTime(1200 * pitchMod, t);
-          modGain.gain.setValueAtTime(600 * pitchMod, t);
-          modGain.gain.exponentialRampToValueAtTime(10, t + 0.1);
-
-          mod.connect(osc.frequency);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-
-          mod.start(t);
-          osc.start(t);
-          mod.stop(t + 0.12);
-          osc.stop(t + 0.12);
-        } catch (e) {}
-      }
-
-      // 破裂・果汁飛散音
-      playSplat() {
-        if (this.isMuted || !this.ctx) return;
-        try {
-          const t = this.ctx.currentTime;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(320, t);
-          osc.frequency.exponentialRampToValueAtTime(60, t + 0.15);
-
-          gain.gain.setValueAtTime(0.3, t);
-          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(t);
-          osc.stop(t + 0.15);
-        } catch (e) {}
-      }
-
-      // 拍子木・和太鼓コンボ音
-      playCombo(comboCount) {
-        if (this.isMuted || !this.ctx) return;
-        try {
-          const t = this.ctx.currentTime;
-
-          // 拍子木 (カァン！)
-          const hyoshigi = this.ctx.createOscillator();
-          const hyoGain = this.ctx.createGain();
-          hyoshigi.type = 'sine';
-          const freq = 1400 + Math.min(comboCount * 120, 1000);
-          hyoshigi.frequency.setValueAtTime(freq, t);
-          hyoshigi.frequency.exponentialRampToValueAtTime(freq * 0.8, t + 0.08);
-
-          hyoGain.gain.setValueAtTime(0.45, t);
-          hyoGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-
-          hyoshigi.connect(hyoGain);
-          hyoGain.connect(this.ctx.destination);
-          hyoshigi.start(t);
-          hyoshigi.stop(t + 0.14);
-
-          // 和太鼓 (ドン！)
-          const taiko = this.ctx.createOscillator();
-          const taiGain = this.ctx.createGain();
-          taiko.type = 'triangle';
-          taiko.frequency.setValueAtTime(160, t);
-          taiko.frequency.exponentialRampToValueAtTime(35, t + 0.25);
-
-          taiGain.gain.setValueAtTime(0.5, t);
-          taiGain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-
-          taiko.connect(taiGain);
-          taiGain.connect(this.ctx.destination);
-          taiko.start(t);
-          taiko.stop(t + 0.25);
-        } catch (e) {}
-      }
-
-      // 爆弾爆発音
-      playBomb() {
-        if (this.isMuted || !this.ctx) return;
-        try {
-          const t = this.ctx.currentTime;
-          const bufferSize = Math.floor(this.ctx.sampleRate * 0.8);
-          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-          const data = buffer.getChannelData(0);
-          for (let i = 0; i < bufferSize; i++) {
-            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.25));
-          }
-
-          const noise = this.ctx.createBufferSource();
-          noise.buffer = buffer;
-
-          const filter = this.ctx.createBiquadFilter();
-          filter.type = 'lowpass';
-          filter.frequency.setValueAtTime(450, t);
-          filter.frequency.exponentialRampToValueAtTime(40, t + 0.8);
-
-          const gain = this.ctx.createGain();
-          gain.gain.setValueAtTime(0.7, t);
-          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
-
-          // 重低音サブベース
-          const sub = this.ctx.createOscillator();
-          const subGain = this.ctx.createGain();
-          sub.type = 'sine';
-          sub.frequency.setValueAtTime(90, t);
-          sub.frequency.exponentialRampToValueAtTime(20, t + 0.7);
-          subGain.gain.setValueAtTime(0.8, t);
-          subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
-
-          noise.connect(filter);
-          filter.connect(gain);
-          gain.connect(this.ctx.destination);
-
-          sub.connect(subGain);
-          subGain.connect(this.ctx.destination);
-
-          noise.start(t);
-          sub.start(t);
-          noise.stop(t + 0.8);
-          sub.stop(t + 0.8);
-        } catch (e) {}
-      }
-
-      // 金の龍撃破音 (神聖な銅鑼 + 琴の響き)
-      playDragon() {
-        if (this.isMuted || !this.ctx) return;
-        try {
-          const t = this.ctx.currentTime;
-          // 和風ゴング
-          [220, 330, 440, 550, 660].forEach((f, idx) => {
-            const osc = this.ctx.createOscillator();
-            const g = this.ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(f, t + idx * 0.04);
-            g.gain.setValueAtTime(0.3 / (idx + 1), t + idx * 0.04);
-            g.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
-            osc.connect(g);
-            g.connect(this.ctx.destination);
-            osc.start(t + idx * 0.04);
-            osc.stop(t + 1.2);
-          });
-        } catch (e) {}
-      }
-
-      // 見逃しミス音
-      playMiss() {
-        if (this.isMuted || !this.ctx) return;
-        try {
-          const t = this.ctx.currentTime;
+      try {
+        const t = this.ctx.currentTime;
+        [220, 330, 440, 550, 660].forEach((f, idx) => {
           const osc = this.ctx.createOscillator();
           const g = this.ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(140, t);
-          osc.frequency.setValueAtTime(110, t + 0.1);
-          g.gain.setValueAtTime(0.2, t);
-          g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, t + idx * 0.04);
+          g.gain.setValueAtTime(0.25 / (idx + 1), t + idx * 0.04);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
           osc.connect(g);
           g.connect(this.ctx.destination);
-          osc.start(t);
-          osc.stop(t + 0.22);
-        } catch (e) {}
-      }
+          osc.start(t + idx * 0.04);
+          osc.stop(t + 1.2);
+        });
+      } catch (e) {}
+    }
 
-      // 和風BGMループ (琴風ペンタトニックアルペジオ + 和太鼓ビート)
-      startBgm() {
-        if (this.isMuted || !this.ctx || this.isBgmPlaying) return;
-        this.isBgmPlaying = true;
-        this.bgmStep = 0;
-        const melodyPattern = [0, 2, 4, 3, 2, 0, 1, 0, 4, 3, 5, 4, 2, 1, 2, 0];
-        const tempo = 135; // BPM
-        const stepTime = (60 / tempo) / 2; // 8分音符
+    static playMiss() {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
 
-        this.bgmTimer = setInterval(() => {
-          if (this.isMuted || !this.ctx) return;
+      try {
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, t);
+        osc.frequency.setValueAtTime(110, t + 0.1);
+        g.gain.setValueAtTime(0.2, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.connect(g);
+        g.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.2);
+      } catch (e) {}
+    }
+
+    static playTap() {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    }
+
+    static startBgm() {
+      if (this.isBgmPlaying || !soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.isBgmPlaying = true;
+      this.bgmStep = 0;
+      const melodyPattern = [0, 2, 4, 3, 2, 0, 1, 0, 4, 3, 5, 4, 2, 1, 2, 0];
+      const tempo = 135;
+      const stepTime = (60 / tempo) / 2;
+
+      this.bgmTimer = setInterval(() => {
+        if (!soundEnabled || !this.ctx) return;
+        try {
           const t = this.ctx.currentTime;
           const noteIndex = melodyPattern[this.bgmStep % melodyPattern.length];
           const freq = this.scale[noteIndex + 3];
 
-          // 琴風プラック音
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(freq, t);
-
-          gain.gain.setValueAtTime(0.06, t);
+          gain.gain.setValueAtTime(0.05, t);
           gain.gain.exponentialRampToValueAtTime(0.001, t + stepTime * 1.5);
 
           osc.connect(gain);
@@ -329,14 +402,13 @@
           osc.start(t);
           osc.stop(t + stepTime * 1.5);
 
-          // 4拍ごとに太鼓の低音
           if (this.bgmStep % 4 === 0) {
             const drum = this.ctx.createOscillator();
             const dGain = this.ctx.createGain();
             drum.type = 'sine';
             drum.frequency.setValueAtTime(110, t);
             drum.frequency.exponentialRampToValueAtTime(30, t + 0.2);
-            dGain.gain.setValueAtTime(0.12, t);
+            dGain.gain.setValueAtTime(0.1, t);
             dGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
             drum.connect(dGain);
             dGain.connect(this.ctx.destination);
@@ -345,1192 +417,768 @@
           }
 
           this.bgmStep++;
-        }, stepTime * 1000);
-      }
-
-      stopBgm() {
-        if (this.bgmTimer) {
-          clearInterval(this.bgmTimer);
-          this.bgmTimer = null;
-        }
-        this.isBgmPlaying = false;
-      }
+        } catch (e) {}
+      }, stepTime * 1000);
     }
 
-    const sound = new SoundManager();
+    static stopBgm() {
+      if (this.bgmTimer) {
+        clearInterval(this.bgmTimer);
+        this.bgmTimer = null;
+      }
+      this.isBgmPlaying = false;
+    }
+  }
 
-    /* ==========================================================================
-       ターゲット定義 & 定数
-       ========================================================================== */
-    const TARGET_TYPES = {
-      FOOD: [
-        { emoji: '🍉', color: 0xff3344, splashColor: '#ff2a4b', name: '西瓜', points: 10 },
-        { emoji: '🍣', color: 0xff7733, splashColor: '#ff8844', name: '寿司', points: 15 },
-        { emoji: '🍎', color: 0xff2222, splashColor: '#ff1133', name: '林檎', points: 10 },
-        { emoji: '🍕', color: 0xffbb22, splashColor: '#ffcc00', name: '披薩', points: 15 },
-        { emoji: '🍖', color: 0xaa5522, splashColor: '#cc6633', name: '肉',   points: 20 },
-        { emoji: '🍙', color: 0xeeeeee, splashColor: '#ffffff', name: '飯魂', points: 10 },
-        { emoji: '🍰', color: 0xff66aa, splashColor: '#ff77bb', name: '菓子', points: 20 },
-        { emoji: '🍇', color: 0x9933ff, splashColor: '#aa44ff', name: '葡萄', points: 15 },
-        { emoji: '🍌', color: 0xffdd00, splashColor: '#ffee22', name: '香蕉', points: 10 },
-        { emoji: '🥑', color: 0x44aa22, splashColor: '#55cc33', name: '鰐梨', points: 15 }
-      ],
-      BOMB: { emoji: '💣', color: 0x222222, splashColor: '#ff3300', name: '爆弾' },
-      DRAGON: { emoji: '🐉', color: 0xffd700, splashColor: '#ffd700', name: '金龍', points: 200 }
+  // ==========================================
+  // 3. ターゲット定義 & テクスチャ生成
+  // ==========================================
+  const TARGET_TYPES = {
+    FOOD: [
+      { emoji: '🍉', color: 0xff3344, splashColor: '#ff2a4b', name: '西瓜', points: 10 },
+      { emoji: '🍣', color: 0xff7733, splashColor: '#ff8844', name: '寿司', points: 15 },
+      { emoji: '🍎', color: 0xff2222, splashColor: '#ff1133', name: '林檎', points: 10 },
+      { emoji: '🍕', color: 0xffbb22, splashColor: '#ffcc00', name: '披薩', points: 15 },
+      { emoji: '🍖', color: 0xaa5522, splashColor: '#cc6633', name: '肉',   points: 20 },
+      { emoji: '🍙', color: 0xeeeeee, splashColor: '#ffffff', name: '飯魂', points: 10 },
+      { emoji: '🍰', color: 0xff66aa, splashColor: '#ff77bb', name: '菓子', points: 20 },
+      { emoji: '🍇', color: 0x9933ff, splashColor: '#aa44ff', name: '葡萄', points: 15 },
+      { emoji: '🍌', color: 0xffdd00, splashColor: '#ffee22', name: '香蕉', points: 10 },
+      { emoji: '🥑', color: 0x44aa22, splashColor: '#55cc33', name: '鰐梨', points: 15 }
+    ],
+    BOMB: { emoji: '💣', color: 0x222222, splashColor: '#ff3300', name: '爆弾' },
+    DRAGON: { emoji: '🐉', color: 0xffd700, splashColor: '#ffd700', name: '金龍', points: 200 }
+  };
+
+  function initAllTextures(scene) {
+    if (scene.textures.exists('particle_sakura')) return;
+
+    const renderEmoji = (key, emoji, size = 96) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.font = `${Math.floor(size * 0.72)}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(emoji, size / 2, size / 2 + size * 0.05);
+      scene.textures.addCanvas(key, canvas);
     };
 
-    /* ==========================================================================
-       BootScene: テクスチャ生成 & プリロード
-       ========================================================================== */
-    class BootScene extends Phaser.Scene {
-      constructor() {
-        super({ key: 'BootScene' });
+    TARGET_TYPES.FOOD.forEach((f, i) => renderEmoji(`emoji_food_${i}`, f.emoji));
+    renderEmoji('emoji_bomb', TARGET_TYPES.BOMB.emoji);
+    renderEmoji('emoji_dragon', TARGET_TYPES.DRAGON.emoji, 110);
+
+    // 桜の花びらパーティクル
+    const sakuraCanvas = document.createElement('canvas');
+    sakuraCanvas.width = 24;
+    sakuraCanvas.height = 24;
+    const sCtx = sakuraCanvas.getContext('2d');
+    sCtx.fillStyle = '#ffb7c5';
+    sCtx.beginPath();
+    sCtx.ellipse(12, 12, 10, 5, Math.PI / 4, 0, Math.PI * 2);
+    sCtx.fill();
+    scene.textures.addCanvas('particle_sakura', sakuraCanvas);
+
+    // スパーク
+    const sparkCanvas = document.createElement('canvas');
+    sparkCanvas.width = 16;
+    sparkCanvas.height = 16;
+    const spCtx = sparkCanvas.getContext('2d');
+    const grad = spCtx.createRadialGradient(8, 8, 0, 8, 8, 8);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.4, '#ffdd44');
+    grad.addColorStop(1, 'rgba(255, 60, 0, 0)');
+    spCtx.fillStyle = grad;
+    spCtx.beginPath();
+    spCtx.arc(8, 8, 8, 0, Math.PI * 2);
+    spCtx.fill();
+    scene.textures.addCanvas('particle_spark', sparkCanvas);
+  }
+
+  // ==========================================
+  // 4. 共通タイトルシーン (SceneTitle)
+  // ==========================================
+  class SceneTitle extends Phaser.Scene {
+    constructor() { super('SceneTitle'); }
+
+    create() {
+      initAllTextures(this);
+      const { width, height } = this.scale;
+      const t = I18N[currentLang];
+      const highScore = localStorage.getItem('touken_ranbu_highscore') || localStorage.getItem('slash_samurai_highscore') || 0;
+
+      SoundManager.stopBgm();
+
+      // 背景
+      const bg = this.add.graphics();
+      bg.fillGradientStyle(0x1F1428, 0x1F1428, 0x08060D, 0x08060D, 1);
+      bg.fillRect(0, 0, width, height);
+
+      // --- トップバー (UIトグル) ---
+      this.createHeaderUI(width);
+
+      // タイトルロゴ
+      this.add.text(width / 2, 175, t.title, {
+        fontSize: '38px',
+        fontFamily: 'system-ui, sans-serif',
+        fontStyle: 'bold',
+        fill: '#ffd700',
+        stroke: '#881100',
+        strokeThickness: 7
+      }).setOrigin(0.5);
+
+      this.add.text(width / 2, 218, t.subTitle, {
+        fontSize: '13px',
+        fill: '#fca5a5'
+      }).setOrigin(0.5);
+
+      // メイン犬アイコンアニメーション
+      const demoDog = this.add.text(width / 2, 288, '🐶', { fontSize: '72px' }).setOrigin(0.5);
+      this.tweens.add({
+        targets: demoDog,
+        scale: 1.15,
+        yoyo: true,
+        repeat: -1,
+        duration: 800,
+        ease: 'Sine.easeInOut'
+      });
+
+      // 遊び方カード
+      const card = this.add.graphics();
+      card.fillStyle(0x1a0f24, 0.9);
+      card.lineStyle(1, 0xef4444, 0.5);
+      card.strokeRoundedRect(28, 355, width - 56, 175, 16);
+      card.fillRoundedRect(28, 355, width - 56, 175, 16);
+
+      this.add.text(width / 2, 380, t.howToPlay, { fontSize: '15px', fontStyle: 'bold', fill: '#fbbf24' }).setOrigin(0.5);
+      this.add.text(width / 2, 420, t.rule1, { fontSize: '13px', fill: '#f1f5f9' }).setOrigin(0.5);
+      this.add.text(width / 2, 455, t.rule2, { fontSize: '13px', fill: '#fde047' }).setOrigin(0.5);
+      this.add.text(width / 2, 490, t.rule3, { fontSize: '13px', fill: '#f87171' }).setOrigin(0.5);
+
+      // ハイスコア表示
+      this.add.text(width / 2, 560, `🏆 ${t.bestScore}: ${highScore} 閃`, {
+        fontSize: '16px',
+        fontStyle: 'bold',
+        fill: '#ffd700'
+      }).setOrigin(0.5);
+
+      // スタートボタン（ふわふわ浮遊＆パルスアニメーション）
+      const btnContainer = this.add.container(width / 2, 635);
+
+      const startBtn = this.add.rectangle(0, 0, width - 80, 54, 0xdc2626)
+        .setStrokeStyle(2, 0xfde047, 0.9)
+        .setInteractive({ useHandCursor: true });
+      const startTxt = this.add.text(0, 0, t.startBtn, {
+        fontSize: '18px',
+        fontStyle: 'bold',
+        fill: '#ffffff'
+      }).setOrigin(0.5);
+
+      btnContainer.add([startBtn, startTxt]);
+
+      this.tweens.add({
+        targets: btnContainer,
+        y: 627,
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 750,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      startBtn.on('pointerdown', () => {
+        SoundManager.playTap();
+        SoundManager.playSlice();
+        SoundManager.startBgm();
+        this.scene.start('SceneGame');
+      });
+    }
+
+    createHeaderUI(w) {
+      // サウンド切替ピル
+      const sfxBg = this.add.rectangle(80, 42, 110, 32, soundEnabled ? 0x991b1b : 0x1e293b, 0.9)
+        .setStrokeStyle(1, soundEnabled ? 0xf87171 : 0x475569)
+        .setInteractive({ useHandCursor: true });
+      this.add.text(80, 42, soundEnabled ? '🔊 SFX ON' : '🔇 OFF', {
+        fontSize: '12px', fontStyle: 'bold', fill: '#fff'
+      }).setOrigin(0.5);
+
+      sfxBg.on('pointerdown', () => {
+        soundEnabled = !soundEnabled;
+        localStorage.setItem('shigege_game_sfx', soundEnabled ? 'true' : 'false');
+        SoundManager.playTap();
+        this.scene.restart();
+      });
+
+      // 言語切替ピル
+      const langBg = this.add.rectangle(w - 80, 42, 110, 32, 0x1e293b, 0.9)
+        .setStrokeStyle(1, 0xef4444, 0.5)
+        .setInteractive({ useHandCursor: true });
+      this.add.text(w - 80, 42, currentLang === 'ja' ? '🇯🇵 日本語' : '🇺🇸 English', {
+        fontSize: '12px', fontStyle: 'bold', fill: '#f87171'
+      }).setOrigin(0.5);
+
+      langBg.on('pointerdown', () => {
+        currentLang = currentLang === 'ja' ? 'en' : 'ja';
+        localStorage.setItem('shigege_game_lang', currentLang);
+        SoundManager.playTap();
+        this.scene.restart();
+      });
+    }
+  }
+
+  // ==========================================
+  // 5. メインゲームシーン (SceneGame)
+  // ==========================================
+  class SceneGame extends Phaser.Scene {
+    constructor() { super('SceneGame'); }
+
+    create() {
+      const { width, height } = this.scale;
+
+      this.score = 0;
+      this.misses = 0;
+      this.maxMisses = 3;
+      this.isGameOver = false;
+      this.gameTime = 0;
+      this.spawnTimer = 0;
+      this.dragonSpawnTimer = Phaser.Math.Between(15, 25);
+
+      this.bladePoints = [];
+      this.bladeGraphics = this.add.graphics().setDepth(200);
+
+      // 背景
+      const bg = this.add.graphics().setDepth(0);
+      bg.fillGradientStyle(0x1F1428, 0x1F1428, 0x08060D, 0x08060D, 1);
+      bg.fillRect(0, 0, width, height);
+
+      // 桜吹雪パーティクル
+      this.sakuraEmitter = this.add.particles(0, 0, 'particle_sakura', {
+        x: { min: 0, max: width },
+        y: -20,
+        lifespan: 5000,
+        speedY: { min: 60, max: 130 },
+        speedX: { min: -40, max: 40 },
+        rotation: { min: 0, max: 360 },
+        rotate: { min: 0, max: 360 },
+        scale: { start: 0.8, end: 0.3 },
+        alpha: { start: 0.7, end: 0 },
+        frequency: 300
+      }).setDepth(5);
+
+      // グループ (Phaser 3の物理グループによるsetVelocityリセットを防ぐため通常グループを使用)
+      this.targets = this.add.group();
+      this.slicedPieces = this.add.group();
+
+      this.createUI();
+
+      // 入力イベント（スワイプ・ドラッグ軌跡）
+      this.input.on('pointerdown', this.onPointerDown, this);
+      this.input.on('pointermove', this.onPointerMove, this);
+      this.input.on('pointerup', this.onPointerUp, this);
+
+      SoundManager.startBgm();
+    }
+
+    createUI() {
+      const { width } = this.scale;
+
+      this.scoreText = this.add.text(20, 20, `SCORE: 0 閃`, {
+        fontSize: '22px',
+        fontFamily: 'system-ui, sans-serif',
+        fontWeight: 'bold',
+        color: '#ffd700'
+      }).setDepth(100);
+
+      this.missText = this.add.text(width - 20, 20, '⚔️ ⚔️ ⚔️', {
+        fontSize: '22px'
+      }).setOrigin(1, 0).setDepth(100);
+    }
+
+    onPointerDown(pointer) {
+      if (this.isGameOver) return;
+      this.bladePoints = [{ x: pointer.x, y: pointer.y, time: Date.now() }];
+    }
+
+    onPointerMove(pointer) {
+      if (this.isGameOver || !pointer.isDown) return;
+
+      const now = Date.now();
+      const prevPoint = this.bladePoints[this.bladePoints.length - 1];
+
+      if (prevPoint) {
+        const dist = Phaser.Math.Distance.Between(prevPoint.x, prevPoint.y, pointer.x, pointer.y);
+        if (dist > 8) {
+          const speed = dist / Math.max(now - prevPoint.time, 1);
+          SoundManager.playSwish(speed);
+          this.checkSlice(prevPoint, pointer);
+        }
       }
 
-      create() {
-        // 絵文字テクスチャをCanvasで高解像度レンダリングしてキャッシュ
-        const renderEmoji = (key, emoji, size = 110) => {
-          const canvas = document.createElement('canvas');
-          canvas.width = size;
-          canvas.height = size;
-          const ctx = canvas.getContext('2d');
-          ctx.font = `${Math.floor(size * 0.72)}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(emoji, size / 2, size / 2 + size * 0.05);
-          this.textures.addCanvas(key, canvas);
-        };
+      this.bladePoints.push({ x: pointer.x, y: pointer.y, time: now });
+    }
 
-        // 全食材絵文字
-        TARGET_TYPES.FOOD.forEach((f, i) => {
-          renderEmoji(`emoji_food_${i}`, f.emoji);
-        });
-        // 爆弾 & 金の龍
-        renderEmoji('emoji_bomb', TARGET_TYPES.BOMB.emoji);
-        renderEmoji('emoji_dragon', TARGET_TYPES.DRAGON.emoji, 130);
+    onPointerUp() {
+      this.bladePoints = [];
+    }
 
-        // 桜の花びらパーティクル用テクスチャ
-        const sakuraCanvas = document.createElement('canvas');
-        sakuraCanvas.width = 24;
-        sakuraCanvas.height = 24;
-        const sCtx = sakuraCanvas.getContext('2d');
-        sCtx.fillStyle = '#ffb7c5';
-        sCtx.beginPath();
-        sCtx.ellipse(12, 12, 10, 5, Math.PI / 4, 0, Math.PI * 2);
-        sCtx.fill();
-        this.textures.addCanvas('particle_sakura', sakuraCanvas);
+    checkSlice(p1, p2) {
+      const line = new Phaser.Geom.Line(p1.x, p1.y, p2.x, p2.y);
+      let hitCount = 0;
 
-        // スパーク用テクスチャ
-        const sparkCanvas = document.createElement('canvas');
-        sparkCanvas.width = 16;
-        sparkCanvas.height = 16;
-        const spCtx = sparkCanvas.getContext('2d');
-        const grad = spCtx.createRadialGradient(8, 8, 0, 8, 8, 8);
-        grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.4, '#ffdd44');
-        grad.addColorStop(1, 'rgba(255, 60, 0, 0)');
-        spCtx.fillStyle = grad;
-        spCtx.beginPath();
-        spCtx.arc(8, 8, 8, 0, Math.PI * 2);
-        spCtx.fill();
-        this.textures.addCanvas('particle_spark', sparkCanvas);
+      this.targets.getChildren().forEach(target => {
+        if (!target.active || target.isSliced) return;
 
-        this.scene.start('TitleScene');
+        const circle = new Phaser.Geom.Circle(target.x, target.y, target.hitRadius || 40);
+        if (Phaser.Geom.Intersects.LineToCircle(line, circle)) {
+          this.sliceTarget(target, p1, p2);
+          hitCount++;
+        }
+      });
+
+      if (hitCount >= 2) {
+        SoundManager.playCombo(hitCount);
+        this.showComboEffect(p2.x, p2.y, hitCount);
       }
     }
 
-    /* ==========================================================================
-       TitleScene: 和風タイトル画面
-       ========================================================================== */
-    class TitleScene extends Phaser.Scene {
-      constructor() {
-        super({ key: 'TitleScene' });
-      }
+    sliceTarget(target, p1, p2) {
+      target.isSliced = true;
 
-      create() {
-        const { width, height } = this.scale;
-
-        // 背景和風グラフィック
-        const bgGfx = this.add.graphics();
-        bgGfx.fillGradientStyle(0x181224, 0x181224, 0x08060c, 0x08060c, 1);
-        bgGfx.fillRect(0, 0, width, height);
-
-        // 家紋風の円形バックグラウンド装飾
-        const crest = this.add.graphics();
-        crest.lineStyle(3, 0xff3300, 0.25);
-        crest.strokeCircle(width / 2, height * 0.38, 220);
-        crest.lineStyle(1.5, 0xffaa00, 0.2);
-        crest.strokeCircle(width / 2, height * 0.38, 250);
-
-        // 舞い散る桜吹雪エフェクト
-        this.sakuraEmitter = this.add.particles(0, 0, 'particle_sakura', {
-          x: { min: 0, max: width },
-          y: -20,
-          lifespan: 5000,
-          speedY: { min: 80, max: 180 },
-          speedX: { min: -40, max: 40 },
-          rotation: { min: 0, max: 360 },
-          rotate: { start: 0, end: 360 },
-          scale: { min: 0.6, max: 1.3 },
-          alpha: { start: 0.8, end: 0 },
-          frequency: 250
-        });
-
-        // タイトルロゴ
-        const mainTitle = this.add.text(width / 2, height * 0.28, '一閃爽快！', {
-          fontSize: '44px',
-          fontFamily: '"Zen Old Mincho", "Yuji Boku", serif',
-          fontWeight: '900',
-          color: '#ff4422',
-          stroke: '#000000',
-          strokeThickness: 8,
-          shadow: { offsetX: 0, offsetY: 6, color: '#ff2200', blur: 15, fill: true }
-        }).setOrigin(0.5);
-
-        const subTitle = this.add.text(width / 2, height * 0.38, '闘犬乱舞', {
-          fontSize: '84px',
-          fontFamily: '"Zen Old Mincho", "Yuji Boku", serif',
-          fontWeight: '900',
-          color: '#ffd700',
-          stroke: '#220000',
-          strokeThickness: 12,
-          shadow: { offsetX: 0, offsetY: 8, color: '#ff8800', blur: 25, fill: true }
-        }).setOrigin(0.5);
-
-        this.tweens.add({
-          targets: [mainTitle, subTitle],
-          scale: { from: 0.96, to: 1.04 },
-          duration: 1800,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut'
-        });
-
-        // 遊び方説明
-        const guideBox = this.add.graphics();
-        guideBox.fillStyle(0x000000, 0.6);
-        guideBox.fillRoundedRect(width / 2 - 270, height * 0.52, 540, 240, 16);
-        guideBox.lineStyle(2, 0xaa7733, 0.6);
-        guideBox.strokeRoundedRect(width / 2 - 270, height * 0.52, 540, 240, 16);
-
-        this.add.text(width / 2, height * 0.55, '【 乱舞心得 】', {
-          fontSize: '28px',
-          color: '#ffd700',
-          fontWeight: 'bold'
-        }).setOrigin(0.5);
-
-        const guideText = [
-          '● 画面を素早くスワイプして食材を両断せよ！',
-          '● 3回見逃し（🐶）で敗北 / 💣爆弾を切ると即死！',
-          '● 一筆で複数両断で「一閃」「神速」コンボ！',
-          '● 稀に出現する 🐉金龍 で「無双フィーバー」！'
-        ].join('\n\n');
-
-        this.add.text(width / 2, height * 0.64, guideText, {
-          fontSize: '20px',
-          color: '#dddddd',
-          align: 'center',
-          lineSpacing: 4
-        }).setOrigin(0.5);
-
-        // ハイスコア表示 (旧キーもフォールバック)
-        const highScore = localStorage.getItem('touken_ranbu_highscore') || localStorage.getItem('slash_samurai_highscore') || 0;
-        this.add.text(width / 2, height * 0.77, `最高記録：${highScore} 閃`, {
-          fontSize: '28px',
-          color: '#ffcc44',
-          fontWeight: 'bold'
-        }).setOrigin(0.5);
-
-        // スタート促進ボタン / スワイプ開始メッセージ
-        const startBanner = this.add.container(width / 2, height * 0.86);
-        const btnBg = this.add.graphics();
-        btnBg.fillStyle(0xcc2200, 0.9);
-        btnBg.fillRoundedRect(-220, -38, 440, 76, 38);
-        btnBg.lineStyle(3, 0xffd700, 0.9);
-        btnBg.strokeRoundedRect(-220, -38, 440, 76, 38);
-
-        const btnTxt = this.add.text(0, 0, '⚔️ スワイプして開戦 ⚔️', {
-          fontSize: '32px',
-          fontWeight: 'bold',
-          color: '#ffffff'
-        }).setOrigin(0.5);
-
-        startBanner.add([btnBg, btnTxt]);
-
-        this.tweens.add({
-          targets: startBanner,
-          scale: { from: 0.93, to: 1.07 },
-          alpha: { from: 0.85, to: 1.0 },
-          duration: 900,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut'
-        });
-
-        // 刀筋トレイル体験用
-        this.bladePoints = [];
-        this.bladeGraphics = this.add.graphics();
-
-        this.input.on('pointerdown', (pointer) => {
-          sound.init();
-          sound.startBgm();
-          this.bladePoints = [{ x: pointer.x, y: pointer.y, time: Date.now() }];
-        });
-
-        this.input.on('pointermove', (pointer) => {
-          if (!pointer.isDown) return;
-          const now = Date.now();
-          this.bladePoints.push({ x: pointer.x, y: pointer.y, time: now });
-          if (this.bladePoints.length > 2) {
-            const p1 = this.bladePoints[this.bladePoints.length - 2];
-            const p2 = this.bladePoints[this.bladePoints.length - 1];
-            const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-            const dt = (p2.time - p1.time) / 1000 || 0.016;
-            if (dist / dt > 160) {
-              sound.playSlice(1.2);
-              this.cameras.main.flash(300, 255, 255, 255);
-              this.scene.start('GameScene');
-            }
-          }
-        });
-      }
-
-      update() {
-        const now = Date.now();
-        this.bladePoints = this.bladePoints.filter(p => now - p.time < 120);
-        this.bladeGraphics.clear();
-        if (this.bladePoints.length > 1) {
-          for (let i = 1; i < this.bladePoints.length; i++) {
-            const p1 = this.bladePoints[i - 1];
-            const p2 = this.bladePoints[i];
-            const alpha = i / this.bladePoints.length;
-            this.bladeGraphics.lineStyle(12 * alpha, 0xff3300, alpha * 0.8);
-            this.bladeGraphics.lineBetween(p1.x, p1.y, p2.x, p2.y);
-            this.bladeGraphics.lineStyle(4 * alpha, 0xffffff, alpha);
-            this.bladeGraphics.lineBetween(p1.x, p1.y, p2.x, p2.y);
-          }
-        }
-      }
-    }
-
-    /* ==========================================================================
-       GameScene: メインゲームループ
-       ========================================================================== */
-    class GameScene extends Phaser.Scene {
-      constructor() {
-        super({ key: 'GameScene' });
-      }
-
-      create() {
-        sound.init();
-        sound.startBgm();
-
-        const { width, height } = this.scale;
-
-        // ゲーム状態変数
-        this.score = 0;
-        this.lives = 3;
-        this.isGameOver = false;
-        this.isFever = false;
-        this.feverTimer = 0;
-        this.gameTime = 0;
-        this.spawnTimer = 0;
-        this.dragonSpawnTimer = 18; // 18秒後に出現チャンス
-
-        // 1ストローク管理（コンボ判定用）
-        this.currentStrokeSlices = [];
-        this.lastSliceTime = 0;
-
-        // グループ管理
-        this.targets = this.add.group();
-        this.slicedPieces = this.add.group();
-
-        // 背景
-        this.bgGfx = this.add.graphics();
-        this.drawBackground(0x120d1c);
-
-        // 桜吹雪パーティクル
-        this.sakuraEmitter = this.add.particles(0, 0, 'particle_sakura', {
-          x: { min: 0, max: width },
-          y: -20,
-          lifespan: 5000,
-          speedY: { min: 60, max: 140 },
-          speedX: { min: -30, max: 30 },
-          rotation: { min: 0, max: 360 },
-          rotate: { start: 0, end: 360 },
-          scale: { min: 0.5, max: 1.1 },
-          alpha: { start: 0.7, end: 0 },
-          frequency: 350
-        });
-
-        // 刀筋グラフィックス
-        this.bladeGraphics = this.add.graphics();
-        this.bladePoints = [];
-        this.lastSwishTime = 0;
-
-        // HUD構築
-        this.createHUD();
-
-        // 入力イベント
-        this.input.on('pointerdown', (p) => this.onPointerDown(p));
-        this.input.on('pointermove', (p) => this.onPointerMove(p));
-        this.input.on('pointerup', () => this.onPointerUp());
-      }
-
-      drawBackground(baseColor) {
-        const { width, height } = this.scale;
-        this.bgGfx.clear();
-        this.bgGfx.fillGradientStyle(baseColor, baseColor, 0x050408, 0x050408, 1);
-        this.bgGfx.fillRect(0, 0, width, height);
-
-        // 竹林・墨絵風の背景シルエット装飾
-        this.bgGfx.fillStyle(0x000000, 0.35);
-        for (let i = 0; i < 6; i++) {
-          const bx = i * 140 + 30;
-          this.bgGfx.fillRect(bx, 0, 18, height);
-          for (let j = 0; j < 8; j++) {
-            this.bgGfx.fillCircle(bx + 9, j * 160 + 50, 12);
-          }
-        }
-      }
-
-      createHUD() {
-        const { width } = this.scale;
-
-        // ライフ表示 (左上に 3匹の闘犬 🐶)
-        this.lifeIcons = [];
-        for (let i = 0; i < 3; i++) {
-          const icon = this.add.text(45 + i * 55, 48, '🐶', {
-            fontSize: '40px'
-          }).setOrigin(0.5);
-          this.lifeIcons.push(icon);
-        }
-
-        // スコア表示
-        this.scoreLabel = this.add.text(40, 85, '斬数', {
-          fontSize: '20px',
-          color: '#aa8855',
-          fontFamily: '"Zen Old Mincho", serif'
-        });
-
-        this.scoreText = this.add.text(40, 115, '0', {
-          fontSize: '48px',
-          fontWeight: '900',
-          color: '#ffd700',
-          stroke: '#000000',
-          strokeThickness: 6,
-          fontFamily: '"Zen Old Mincho", serif'
-        });
-
-        // フィーバーバナー
-        this.feverContainer = this.add.container(width / 2, 170).setVisible(false);
-        const feverBg = this.add.graphics();
-        feverBg.fillStyle(0xffaa00, 0.9);
-        feverBg.fillRoundedRect(-180, -25, 360, 50, 25);
-        feverBg.lineStyle(3, 0xffffff, 1);
-        feverBg.strokeRoundedRect(-180, -25, 360, 50, 25);
-
-        const feverTxt = this.add.text(0, 0, '⚡ 無双乱舞フィーバー中 ⚡', {
-          fontSize: '24px',
-          fontWeight: 'bold',
-          color: '#000000',
-          fontFamily: '"Zen Old Mincho", serif'
-        }).setOrigin(0.5);
-        this.feverContainer.add([feverBg, feverTxt]);
-
-        // ミュートボタン
-        this.muteBtn = this.add.text(width - 50, 125, '🔊', {
-          fontSize: '32px'
-        }).setOrigin(0.5).setInteractive();
-
-        this.muteBtn.on('pointerdown', () => {
-          const isMuted = sound.toggleMute();
-          this.muteBtn.setText(isMuted ? '🔇' : '🔊');
-        });
-      }
-
-      onPointerDown(pointer) {
-        if (this.isGameOver) return;
-        this.bladePoints = [{ x: pointer.x, y: pointer.y, time: Date.now() }];
-        this.currentStrokeSlices = [];
-      }
-
-      onPointerMove(pointer) {
-        if (this.isGameOver || !pointer.isDown) return;
-        const now = Date.now();
-        const p2 = { x: pointer.x, y: pointer.y, time: now };
-        this.bladePoints.push(p2);
-
-        if (this.bladePoints.length < 2) return;
-
-        const p1 = this.bladePoints[this.bladePoints.length - 2];
-        const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-        const dt = (p2.time - p1.time) / 1000 || 0.016;
-        const speed = dist / dt; // px/sec
-
-        // 一定速度（180px/s）以上のスワイプで刃が立ちスライス判定（PCマウスでも快適）
-        if (speed > 180) {
-          if (now - this.lastSwishTime > 150) {
-            sound.playSwish(Math.max(speed / 600, 0.6));
-            this.lastSwishTime = now;
-          }
-
-          // 線分とターゲットの交差判定
-          this.checkSliceCollisions(p1, p2);
-        }
-      }
-
-      onPointerUp() {
-        if (this.isGameOver) return;
-        this.evaluateCombo();
-      }
-
-      checkSliceCollisions(p1, p2) {
-        const activeTargets = this.targets.getChildren().filter(t => t.active && !t.isSliced);
-
-        activeTargets.forEach(target => {
-          const radius = target.hitRadius || 45;
-          const circle = new Phaser.Geom.Circle(target.x, target.y, radius);
-          const line = new Phaser.Geom.Line(p1.x, p1.y, p2.x, p2.y);
-
-          if (Phaser.Geom.Intersects.LineToCircle(line, circle)) {
-            this.sliceTarget(target, p1, p2);
-          }
-        });
-      }
-
-      sliceTarget(target, p1, p2) {
-        target.isSliced = true;
-        const angle = Phaser.Math.Angle.Between(p1.x, p1.y, p2.x, p2.y);
-
-        // 💣 爆弾を斬った場合 -> 即座に大爆発ゲームオーバー
-        if (target.targetType === 'BOMB') {
-          this.triggerBombExplosion(target);
-          return;
-        }
-
-        // 🐉 金の龍を斬った場合 -> 無双フィーバー
-        if (target.targetType === 'DRAGON') {
-          this.triggerDragonSlashed(target, angle);
-          return;
-        }
-
-        // 通常食材のスライス
-        const foodData = target.foodData;
-        this.score += (this.isFever ? foodData.points * 2 : foodData.points);
-        this.scoreText.setText(this.score.toString());
-
-        // スケールポップアニメーション
-        this.tweens.add({
-          targets: this.scoreText,
-          scale: { from: 1.3, to: 1.0 },
-          duration: 180,
-          ease: 'Back.easeOut'
-        });
-
-        // サウンド
-        sound.playSlice(Phaser.Math.FloatBetween(0.9, 1.25));
-        sound.playSplat();
-
-        // 画面シェイク (微小)
-        this.cameras.main.shake(120, 0.007);
-
-        // Canvas動的クリッピングで左右真っ二つに分割
-        this.createSlicedPieces(target, angle);
-
-        // パーティクル放出 (果汁 + スパーク + 桜)
-        this.emitSliceParticles(target.x, target.y, foodData.splashColor);
-
-        // 閃光一閃ライン
-        this.drawFlashSlash(p1, p2);
-
-        // ストローク内のスライス数を記録
-        this.currentStrokeSlices.push(foodData);
-        this.lastSliceTime = Date.now();
-
-        // 元のターゲット消滅
+      if (target.targetType === 'BOMB') {
+        SoundManager.playBomb();
+        this.cameras.main.shake(400, 0.03);
+        this.createExplosionEffect(target.x, target.y);
+        this.triggerGameOver('💣 爆弾に触れてしまった！');
         target.destroy();
+        return;
       }
 
-      // Canvas動的クリッピング切断処理
-      createSlicedPieces(target, angle) {
-        const size = 110;
-        const halfSize = size / 2;
+      if (target.targetType === 'DRAGON') {
+        SoundManager.playDragon();
+        this.score += 200;
+        this.scoreText.setText(`SCORE: ${this.score} 閃`);
+        this.cameras.main.shake(250, 0.02);
+        this.showFloatingScore(target.x, target.y, '+200 閃 (金龍討伐!)', '#ffd700');
+        this.createDragonExplosion(target.x, target.y);
+        target.destroy();
+        return;
+      }
 
-        // 角度 angle に沿って元テクスチャを上下(左右)半分に描画した2つの動的Canvasを生成
-        const createHalfCanvas = (isTopSide) => {
-          const canvas = document.createElement('canvas');
-          canvas.width = size;
-          canvas.height = size;
-          const ctx = canvas.getContext('2d');
+      // 通常食材
+      SoundManager.playSlice();
+      const points = (target.foodData && target.foodData.points) || 10;
+      this.score += points;
+      this.scoreText.setText(`SCORE: ${this.score} 閃`);
 
-          ctx.save();
-          // 中心へ移動してスライス角度だけ回転
-          ctx.translate(halfSize, halfSize);
-          ctx.rotate(-angle);
+      this.showFloatingScore(target.x, target.y, `+${points}`, '#fde047');
+      this.splitFoodTarget(target, p1, p2);
+    }
 
-          // 半分だけクリッピング
-          ctx.beginPath();
-          if (isTopSide) {
-            ctx.rect(-halfSize, -halfSize, size, halfSize);
-          } else {
-            ctx.rect(-halfSize, 0, size, halfSize);
-          }
-          ctx.clip();
+    splitFoodTarget(target, p1, p2) {
+      const angle = Phaser.Math.Angle.Between(p1.x, p1.y, p2.x, p2.y);
+      const perpAngle = angle + Math.PI / 2;
 
-          // 回転を戻して絵文字を描画
-          ctx.rotate(angle);
-          ctx.font = `${Math.floor(size * 0.72)}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(target.foodData.emoji, 0, size * 0.05);
-
-          ctx.restore();
-          return canvas;
-        };
-
-        const canvasA = createHalfCanvas(true);
-        const canvasB = createHalfCanvas(false);
-
-        const texKeyA = `cut_${Date.now()}_${Math.random()}_a`;
-        const texKeyB = `cut_${Date.now()}_${Math.random()}_b`;
-        this.textures.addCanvas(texKeyA, canvasA);
-        this.textures.addCanvas(texKeyB, canvasB);
-
-        // 法線ベクトル (切断線に対して左右外向きに飛ばす)
-        const normalAngle1 = angle + Math.PI / 2;
-        const normalAngle2 = angle - Math.PI / 2;
-        const pushSpeed = Phaser.Math.Between(220, 360);
-
-        // Piece A
-        const pieceA = this.physics.add.sprite(target.x, target.y, texKeyA);
-        pieceA.setVelocity(
-          Math.cos(normalAngle1) * pushSpeed + target.body.velocity.x * 0.4,
-          Math.sin(normalAngle1) * pushSpeed + target.body.velocity.y * 0.4
+      // 2つのピースに分割して回転飛散
+      for (let i = -1; i <= 1; i += 2) {
+        const piece = this.physics.add.sprite(target.x + Math.cos(perpAngle) * i * 12, target.y, target.texture.key);
+        piece.setScale(0.85);
+        piece.setGravityY(750);
+        piece.setVelocity(
+          target.body.velocity.x * 0.5 + Math.cos(perpAngle) * i * 220,
+          target.body.velocity.y * 0.5 + Math.sin(perpAngle) * i * 180 - 100
         );
-        pieceA.setAngularVelocity(Phaser.Math.Between(180, 400));
-        pieceA.texKey = texKeyA;
-        this.slicedPieces.add(pieceA);
-
-        // Piece B
-        const pieceB = this.physics.add.sprite(target.x, target.y, texKeyB);
-        pieceB.setVelocity(
-          Math.cos(normalAngle2) * pushSpeed + target.body.velocity.x * 0.4,
-          Math.sin(normalAngle2) * pushSpeed + target.body.velocity.y * 0.4
-        );
-        pieceB.setAngularVelocity(Phaser.Math.Between(-400, -180));
-        pieceB.texKey = texKeyB;
-        this.slicedPieces.add(pieceB);
-      }
-
-      // パーティクル演出
-      emitSliceParticles(x, y, splashColor) {
-        // 果汁スプラッシュ (丸いパーティクル)
-        for (let i = 0; i < 14; i++) {
-          const spark = this.add.graphics();
-          spark.fillStyle(Phaser.Display.Color.HexStringToColor(splashColor).color, 1);
-          spark.fillCircle(0, 0, Phaser.Math.Between(3, 8));
-          spark.setPosition(x, y);
-
-          const rad = Phaser.Math.FloatBetween(0, Math.PI * 2);
-          const spd = Phaser.Math.Between(100, 350);
-          const vx = Math.cos(rad) * spd;
-          const vy = Math.sin(rad) * spd;
-
-          this.tweens.add({
-            targets: spark,
-            x: x + vx * 0.4,
-            y: y + vy * 0.4 + 60,
-            scale: 0,
-            alpha: 0,
-            duration: Phaser.Math.Between(300, 550),
-            onComplete: () => spark.destroy()
-          });
-        }
-
-        // 金の火花スパーク
-        for (let i = 0; i < 8; i++) {
-          const sp = this.add.image(x, y, 'particle_spark');
-          sp.setScale(Phaser.Math.FloatBetween(0.8, 1.6));
-          const rad = Phaser.Math.FloatBetween(0, Math.PI * 2);
-          const dist = Phaser.Math.Between(40, 160);
-
-          this.tweens.add({
-            targets: sp,
-            x: x + Math.cos(rad) * dist,
-            y: y + Math.sin(rad) * dist,
-            alpha: 0,
-            scale: 0,
-            duration: 350,
-            onComplete: () => sp.destroy()
-          });
-        }
-      }
-
-      // 閃光一閃ライン
-      drawFlashSlash(p1, p2) {
-        const flashGfx = this.add.graphics();
-        flashGfx.lineStyle(6, 0xffffff, 1);
-        flashGfx.lineBetween(p1.x, p1.y, p2.x, p2.y);
-        flashGfx.lineStyle(14, 0xffd700, 0.7);
-        flashGfx.lineBetween(p1.x, p1.y, p2.x, p2.y);
+        piece.setAngularVelocity(i * 320);
+        this.slicedPieces.add(piece);
 
         this.tweens.add({
-          targets: flashGfx,
+          targets: piece,
           alpha: 0,
-          duration: 160,
-          onComplete: () => flashGfx.destroy()
+          duration: 900,
+          ease: 'Power2',
+          onComplete: () => piece.destroy()
         });
       }
 
-      // コンボ判定
-      evaluateCombo() {
-        const count = this.currentStrokeSlices.length;
-        if (count >= 2) {
-          let bonus = 0;
-          let title = '';
-          let color = '#ffd700';
+      target.destroy();
+    }
 
-          if (count === 2) {
-            title = '二連斬！';
-            bonus = 20;
-            color = '#33ccff';
-          } else if (count === 3) {
-            title = '一閃！';
-            bonus = 50;
-            color = '#ffbb00';
-          } else if (count === 4) {
-            title = '神速！';
-            bonus = 100;
-            color = '#ff4400';
-          } else {
-            title = '天下無双！';
-            bonus = 200;
-            color = '#ff0055';
-          }
+    showComboEffect(x, y, count) {
+      const text = this.add.text(x, y - 30, `⚡ ${count} 一閃 COMBO!`, {
+        fontSize: '24px',
+        fontWeight: '900',
+        color: '#fde047',
+        stroke: '#991b1b',
+        strokeThickness: 5
+      }).setOrigin(0.5).setDepth(150);
 
-          this.score += bonus;
-          this.scoreText.setText(this.score.toString());
+      this.tweens.add({
+        targets: text,
+        y: y - 80,
+        alpha: 0,
+        scale: { from: 1.3, to: 0.9 },
+        duration: 800,
+        ease: 'Cubic.easeOut',
+        onComplete: () => text.destroy()
+      });
+    }
 
-          sound.playCombo(count);
-          this.showComboCutIn(title, `+${bonus}`, color);
-          this.cameras.main.shake(180, 0.015);
-        }
-        this.currentStrokeSlices = [];
-      }
+    showFloatingScore(x, y, textStr, color = '#fde047') {
+      const text = this.add.text(x, y, textStr, {
+        fontSize: '20px',
+        fontWeight: 'bold',
+        color: color,
+        stroke: '#000',
+        strokeThickness: 4
+      }).setOrigin(0.5).setDepth(120);
 
-      showComboCutIn(title, bonusStr, color) {
-        const { width, height } = this.scale;
-        const container = this.add.container(width / 2, height * 0.45);
+      this.tweens.add({
+        targets: text,
+        y: y - 50,
+        alpha: 0,
+        duration: 700,
+        ease: 'Quad.easeOut',
+        onComplete: () => text.destroy()
+      });
+    }
 
-        const txt = this.add.text(0, 0, title, {
-          fontSize: '64px',
-          fontWeight: '900',
-          fontFamily: '"Zen Old Mincho", "Yuji Boku", serif',
-          color: color,
-          stroke: '#000000',
-          strokeThickness: 8,
-          shadow: { offsetX: 0, offsetY: 6, color: color, blur: 20, fill: true }
-        }).setOrigin(0.5);
-
-        const sub = this.add.text(0, 55, bonusStr, {
-          fontSize: '36px',
-          fontWeight: 'bold',
-          color: '#ffffff',
-          stroke: '#000000',
-          strokeThickness: 5
-        }).setOrigin(0.5);
-
-        container.add([txt, sub]);
-        container.setScale(0.2);
-
+    createExplosionEffect(x, y) {
+      for (let i = 0; i < 20; i++) {
+        const spark = this.add.image(x, y, 'particle_spark');
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Phaser.Math.Between(100, 300);
         this.tweens.add({
-          targets: container,
-          scale: 1.2,
-          duration: 200,
-          ease: 'Back.easeOut',
-          onComplete: () => {
-            this.tweens.add({
-              targets: container,
-              scale: 1.4,
-              alpha: 0,
-              y: height * 0.4,
-              duration: 400,
-              delay: 300,
-              onComplete: () => container.destroy()
-            });
-          }
-        });
-      }
-
-      // 🐉 金の龍スライス時演出
-      triggerDragonSlashed(target, angle) {
-        sound.playDragon();
-        this.score += TARGET_TYPES.DRAGON.points;
-        this.scoreText.setText(this.score.toString());
-
-        this.cameras.main.flash(400, 255, 215, 0);
-        this.cameras.main.shake(300, 0.025);
-
-        this.emitSliceParticles(target.x, target.y, '#ffd700');
-        this.showComboCutIn('無双乱舞！', '+200 & フィーバー！', '#ffd700');
-
-        target.destroy();
-        this.startFever();
-      }
-
-      startFever() {
-        this.isFever = true;
-        this.feverTimer = 5.0; // 5秒間
-        this.feverContainer.setVisible(true);
-        this.drawBackground(0x2a1a05);
-
-        // 物理スローモーション
-        this.physics.world.timeScale = 0.5;
-
-        // 大量食材噴出シャワー
-        for (let i = 0; i < 16; i++) {
-          this.time.delayedCall(i * 200, () => {
-            if (this.isGameOver) return;
-            this.spawnTarget(true); // 食材のみ強制
-          });
-        }
-      }
-
-      endFever() {
-        this.isFever = false;
-        this.feverContainer.setVisible(false);
-        this.drawBackground(0x120d1c);
-        this.physics.world.timeScale = 1.0;
-      }
-
-      // 💣 爆弾爆発
-      triggerBombExplosion(target) {
-        sound.playBomb();
-        this.isGameOver = true;
-
-        this.cameras.main.flash(600, 255, 50, 0);
-        this.cameras.main.shake(600, 0.04);
-
-        // 爆破パーティクル
-        for (let i = 0; i < 30; i++) {
-          const p = this.add.graphics();
-          p.fillStyle(Phaser.Math.RND.pick([0xff3300, 0xffbb00, 0x222222]), 1);
-          p.fillCircle(0, 0, Phaser.Math.Between(6, 18));
-          p.setPosition(target.x, target.y);
-
-          const rad = Phaser.Math.FloatBetween(0, Math.PI * 2);
-          const spd = Phaser.Math.Between(150, 600);
-          this.tweens.add({
-            targets: p,
-            x: target.x + Math.cos(rad) * spd,
-            y: target.y + Math.sin(rad) * spd,
-            alpha: 0,
-            scale: 0,
-            duration: 600,
-            onComplete: () => p.destroy()
-          });
-        }
-
-        target.destroy();
-        this.time.delayedCall(800, () => this.gameOver('爆弾被弾！'));
-      }
-
-      // 食材見逃し落下処理
-      onMissTarget(target) {
-        if (this.isGameOver || this.isFever) return;
-
-        this.lives--;
-        sound.playMiss();
-
-        // ライフアイコン更新 (🐶 -> 💀)
-        if (this.lives >= 0 && this.lives < 3) {
-          const icon = this.lifeIcons[this.lives];
-          icon.setText('💀');
-          this.tweens.add({
-            targets: icon,
-            scale: { from: 1.8, to: 1.0 },
-            duration: 250,
-            ease: 'Back.easeOut'
-          });
-        }
-
-        // 赤い画面フラッシュ
-        this.cameras.main.flash(200, 200, 0, 0);
-
-        if (this.lives <= 0) {
-          this.isGameOver = true;
-          this.time.delayedCall(400, () => this.gameOver('食材見逃し！'));
-        }
-      }
-
-      gameOver(reason) {
-        this.scene.start('GameOverScene', { score: this.score, reason: reason });
-      }
-
-      // スポーンロジック
-      spawnTarget(forceFood = false) {
-        const { width, height } = this.scale;
-        const x = Phaser.Math.Between(120, width - 120);
-        const y = height + 40;
-
-        let targetSprite;
-        const roll = Math.random();
-
-        if (!forceFood && roll < 0.16) {
-          // 💣 爆弾 (16%)
-          targetSprite = this.physics.add.sprite(x, y, 'emoji_bomb');
-          targetSprite.targetType = 'BOMB';
-          targetSprite.hitRadius = 45;
-
-          // 導火線の火花エフェクト
-          targetSprite.fuseTimer = this.time.addEvent({
-            delay: 100,
-            loop: true,
-            callback: () => {
-              if (targetSprite && targetSprite.active) {
-                const sp = this.add.image(targetSprite.x + 20, targetSprite.y - 25, 'particle_spark');
-                sp.setScale(0.6);
-                this.tweens.add({
-                  targets: sp,
-                  y: sp.y - 15,
-                  alpha: 0,
-                  duration: 200,
-                  onComplete: () => sp.destroy()
-                });
-              }
-            }
-          });
-        } else {
-          // 通常食材
-          const foodIdx = Phaser.Math.Between(0, TARGET_TYPES.FOOD.length - 1);
-          const foodData = TARGET_TYPES.FOOD[foodIdx];
-          targetSprite = this.physics.add.sprite(x, y, `emoji_food_${foodIdx}`);
-          targetSprite.targetType = 'FOOD';
-          targetSprite.foodData = foodData;
-          targetSprite.hitRadius = 48;
-        }
-
-        targetSprite.isSliced = false;
-
-        // 画面上部までフワッと高く滞空する打ち上げ物理速度（初速+15% & 重力480）
-        const targetX = width / 2 + Phaser.Math.Between(-180, 180);
-        const vx = (targetX - x) * Phaser.Math.FloatBetween(0.5, 0.95);
-        const vy = Phaser.Math.Between(-1240, -1440);
-
-        targetSprite.setVelocity(vx, vy);
-        targetSprite.setAngularVelocity(Phaser.Math.Between(-140, 140));
-        targetSprite.setGravityY(480);
-
-        this.targets.add(targetSprite);
-      }
-
-      // 金の龍 🐉 スポーン (高速横切り)
-      spawnDragon() {
-        const { width, height } = this.scale;
-        const fromLeft = Math.random() > 0.5;
-        const startX = fromLeft ? -60 : width + 60;
-        const startY = Phaser.Math.Between(height * 0.22, height * 0.40);
-
-        const dragon = this.physics.add.sprite(startX, startY, 'emoji_dragon');
-        dragon.targetType = 'DRAGON';
-        dragon.hitRadius = 55;
-        dragon.isSliced = false;
-
-        const vx = fromLeft ? Phaser.Math.Between(550, 750) : Phaser.Math.Between(-750, -550);
-        const vy = Phaser.Math.Between(-60, 60);
-
-        dragon.setVelocity(vx, vy);
-        dragon.setGravityY(60); // 直線に近い安定軌道
-        dragon.setAngularVelocity(fromLeft ? 90 : -90);
-
-        // 黄金オーラ追従エフェクト
-        dragon.auraEvent = this.time.addEvent({
-          delay: 60,
-          loop: true,
-          callback: () => {
-            if (dragon && dragon.active) {
-              const sp = this.add.image(dragon.x, dragon.y, 'particle_spark');
-              sp.setScale(1.4);
-              this.tweens.add({
-                targets: sp,
-                scale: 0,
-                alpha: 0,
-                duration: 300,
-                onComplete: () => sp.destroy()
-              });
-            }
-          }
-        });
-
-        this.targets.add(dragon);
-      }
-
-      update(time, delta) {
-        const dt = delta / 1000;
-        this.gameTime += dt;
-
-        // 刀筋の描画更新 (170ms保持で滑らかに)
-        const now = Date.now();
-        this.bladePoints = this.bladePoints.filter(p => now - p.time < 170);
-        this.bladeGraphics.clear();
-
-        if (this.bladePoints.length > 1) {
-          for (let i = 1; i < this.bladePoints.length; i++) {
-            const p1 = this.bladePoints[i - 1];
-            const p2 = this.bladePoints[i];
-            const ratio = i / this.bladePoints.length;
-
-            // 筆跡風トレイル (朱色外郭 + 純白・黄金コア)
-            this.bladeGraphics.lineStyle(16 * ratio, 0xee3300, ratio * 0.85);
-            this.bladeGraphics.lineBetween(p1.x, p1.y, p2.x, p2.y);
-
-            this.bladeGraphics.lineStyle(6 * ratio, 0xffffff, ratio * 1.0);
-            this.bladeGraphics.lineBetween(p1.x, p1.y, p2.x, p2.y);
-          }
-        }
-
-        // フィーバータイマー管理
-        if (this.isFever) {
-          this.feverTimer -= dt;
-          if (this.feverTimer <= 0) {
-            this.endFever();
-          }
-        }
-
-        if (this.isGameOver) return;
-
-        // スポーン周期タイマー (山なりに気持ちよくポンポン出現)
-        this.spawnTimer += dt;
-        const currentInterval = Math.max(2.1 - this.gameTime * 0.012, 1.1);
-        if (this.spawnTimer >= currentInterval && !this.isFever) {
-          this.spawnTimer = 0;
-          const count = Phaser.Math.Between(1, this.gameTime > 35 ? 3 : 2);
-          for (let i = 0; i < count; i++) {
-            this.time.delayedCall(i * 180, () => {
-              if (!this.isGameOver) this.spawnTarget();
-            });
-          }
-        }
-
-        // 🐉 金の龍 出現管理
-        this.dragonSpawnTimer -= dt;
-        if (this.dragonSpawnTimer <= 0) {
-          this.spawnDragon();
-          this.dragonSpawnTimer = Phaser.Math.Between(22, 35);
-        }
-
-        // 画面外落下判定 & クリーンアップ
-        const { height } = this.scale;
-        this.targets.getChildren().forEach(target => {
-          if (target.y > height + 80 && target.body.velocity.y > 0) {
-            if (target.targetType === 'FOOD' && !target.isSliced) {
-              this.onMissTarget(target);
-            }
-            if (target.fuseTimer) target.fuseTimer.remove();
-            if (target.auraEvent) target.auraEvent.remove();
-            target.destroy();
-          }
-        });
-
-        // 分割されたピースのクリーンアップ & テクスチャ解放
-        this.slicedPieces.getChildren().forEach(piece => {
-          if (piece.y > height + 100) {
-            if (piece.texKey && this.textures.exists(piece.texKey)) {
-              this.textures.remove(piece.texKey);
-            }
-            piece.destroy();
-          }
+          targets: spark,
+          x: x + Math.cos(angle) * speed,
+          y: y + Math.sin(angle) * speed,
+          alpha: 0,
+          scale: 0,
+          duration: 600,
+          onComplete: () => spark.destroy()
         });
       }
     }
 
-    /* ==========================================================================
-       GameOverScene: リザルト画面 & Xシェア
-       ========================================================================== */
-    class GameOverScene extends Phaser.Scene {
-      constructor() {
-        super({ key: 'GameOverScene' });
-      }
-
-      init(data) {
-        this.finalScore = data.score || 0;
-        this.reason = data.reason || '無念！';
-      }
-
-      create() {
-        const { width, height } = this.scale;
-
-        // ハイスコア更新チェック
-        const currentHigh = parseInt(localStorage.getItem('touken_ranbu_highscore') || localStorage.getItem('slash_samurai_highscore') || '0', 10);
-        let isNewHigh = false;
-        if (this.finalScore > currentHigh) {
-          localStorage.setItem('touken_ranbu_highscore', this.finalScore.toString());
-          isNewHigh = true;
-        }
-
-        // 称号判定
-        let rankTitle = '門下生';
-        if (this.finalScore >= 1500) rankTitle = '天下無双・闘犬王';
-        else if (this.finalScore >= 800) rankTitle = '神速の犬使い';
-        else if (this.finalScore >= 400) rankTitle = '凄腕闘犬士';
-        else if (this.finalScore >= 150) rankTitle = '一人前闘犬士';
-        else if (this.finalScore >= 50) rankTitle = '見習い闘犬士';
-
-        // 背景
-        const bgGfx = this.add.graphics();
-        bgGfx.fillGradientStyle(0x220505, 0x220505, 0x0a0305, 0x0a0305, 1);
-        bgGfx.fillRect(0, 0, width, height);
-
-        // 「無念」大文字
-        this.add.text(width / 2, height * 0.18, '無念…！', {
-          fontSize: '68px',
-          fontWeight: '900',
-          color: '#ff2200',
-          fontFamily: '"Zen Old Mincho", "Yuji Boku", serif',
-          stroke: '#000000',
-          strokeThickness: 8
-        }).setOrigin(0.5);
-
-        this.add.text(width / 2, height * 0.25, `（${this.reason}）`, {
-          fontSize: '22px',
-          color: '#aa7777'
-        }).setOrigin(0.5);
-
-        // リザルトボード
-        const board = this.add.graphics();
-        board.fillStyle(0x000000, 0.7);
-        board.fillRoundedRect(width / 2 - 270, height * 0.31, 540, 310, 20);
-        board.lineStyle(2, 0xcc4422, 0.8);
-        board.strokeRoundedRect(width / 2 - 270, height * 0.31, 540, 310, 20);
-
-        this.add.text(width / 2, height * 0.36, '【 乱舞戦果 】', {
-          fontSize: '26px',
-          color: '#ffcc44',
-          fontWeight: 'bold'
-        }).setOrigin(0.5);
-
-        this.add.text(width / 2, height * 0.44, `${this.finalScore} 閃`, {
-          fontSize: '64px',
-          fontWeight: '900',
-          color: '#ffd700',
-          stroke: '#000000',
-          strokeThickness: 6
-        }).setOrigin(0.5);
-
-        if (isNewHigh) {
-          const newBadge = this.add.text(width / 2, height * 0.51, '★ 最高記録更新！ ★', {
-            fontSize: '24px',
-            fontWeight: 'bold',
-            color: '#ff4400'
-          }).setOrigin(0.5);
-
-          this.tweens.add({
-            targets: newBadge,
-            scale: { from: 0.9, to: 1.1 },
-            duration: 600,
-            yoyo: true,
-            repeat: -1
-          });
-        } else {
-          const best = Math.max(this.finalScore, currentHigh);
-          this.add.text(width / 2, height * 0.51, `最高記録：${best} 閃`, {
-            fontSize: '22px',
-            color: '#aa9977'
-          }).setOrigin(0.5);
-        }
-
-        this.add.text(width / 2, height * 0.58, ` 闘犬称号：【 ${rankTitle} 】`, {
-          fontSize: '28px',
-          fontWeight: 'bold',
-          color: '#ffffff'
-        }).setOrigin(0.5);
-
-        // X（Twitter）シェアボタン
-        const shareBtn = this.add.container(width / 2, height * 0.69);
-        const sBg = this.add.graphics();
-        sBg.fillStyle(0x1d9bf0, 1);
-        sBg.fillRoundedRect(-200, -32, 400, 64, 32);
-        const sTxt = this.add.text(0, 0, '𝕏 成果を文政に放つ (ポスト)', {
-          fontSize: '22px',
-          fontWeight: 'bold',
-          color: '#ffffff'
-        }).setOrigin(0.5);
-        shareBtn.add([sBg, sTxt]);
-        shareBtn.setSize(400, 64).setInteractive({ useHandCursor: true });
-
-        shareBtn.on('pointerdown', () => {
-          const text = `『闘犬乱舞』で【${this.finalScore}閃】（称号: ${rankTitle}）を達成！\n指一本で両断する快感がたまらない！\n#闘犬乱舞 #Phaser3 #WebGame`;
-          const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-          window.open(url, '_blank');
-        });
-
-        // 再戦（リトライ）ボタン
-        const retryBtn = this.add.container(width / 2, height * 0.81);
-        const rBg = this.add.graphics();
-        rBg.fillStyle(0xcc2200, 1);
-        rBg.fillRoundedRect(-200, -36, 400, 72, 36);
-        rBg.lineStyle(3, 0xffd700, 1);
-        rBg.strokeRoundedRect(-200, -36, 400, 72, 36);
-
-        const rTxt = this.add.text(0, 0, '⚔️ 再び刀を抜く ⚔️', {
-          fontSize: '28px',
-          fontWeight: 'bold',
-          color: '#ffffff'
-        }).setOrigin(0.5);
-        retryBtn.add([rBg, rTxt]);
-        retryBtn.setSize(400, 72).setInteractive({ useHandCursor: true });
-
-        retryBtn.on('pointerdown', () => {
-          this.scene.start('GameScene');
-        });
-
-        // タイトルへ戻る
-        const titleBtn = this.add.text(width / 2, height * 0.91, 'タイトル画面へ戻る', {
-          fontSize: '22px',
-          color: '#aa8877',
-          underline: true
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-        titleBtn.on('pointerdown', () => {
-          this.scene.start('TitleScene');
+    createDragonExplosion(x, y) {
+      for (let i = 0; i < 30; i++) {
+        const spark = this.add.image(x, y, 'particle_spark').setScale(1.5);
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Phaser.Math.Between(80, 260);
+        this.tweens.add({
+          targets: spark,
+          x: x + Math.cos(angle) * dist,
+          y: y + Math.sin(angle) * dist,
+          alpha: 0,
+          scale: 0,
+          duration: 800,
+          ease: 'Cubic.easeOut',
+          onComplete: () => spark.destroy()
         });
       }
     }
 
-    /* ==========================================================================
-       Phaser ゲーム初期化
-       ========================================================================== */
-    const config = {
-      type: Phaser.AUTO,
-      parent: 'game-container',
-      width: 720,
-      height: 1280,
-      scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH
-      },
-      physics: {
-        default: 'arcade',
-        arcade: {
-          gravity: { y: 480 },
-          debug: false
+    update(time, delta) {
+      const dt = delta / 1000;
+      this.gameTime += dt;
+
+      // 刀筋の描画更新
+      const now = Date.now();
+      this.bladePoints = this.bladePoints.filter(p => now - p.time < 160);
+      this.bladeGraphics.clear();
+
+      if (this.bladePoints.length > 1) {
+        for (let i = 1; i < this.bladePoints.length; i++) {
+          const p1 = this.bladePoints[i - 1];
+          const p2 = this.bladePoints[i];
+          const ratio = i / this.bladePoints.length;
+
+          this.bladeGraphics.lineStyle(14 * ratio, 0xef4444, ratio * 0.85);
+          this.bladeGraphics.lineBetween(p1.x, p1.y, p2.x, p2.y);
+
+          this.bladeGraphics.lineStyle(5 * ratio, 0xffffff, ratio * 1.0);
+          this.bladeGraphics.lineBetween(p1.x, p1.y, p2.x, p2.y);
         }
-      },
-      scene: [BootScene, TitleScene, GameScene, GameOverScene]
-    };
+      }
 
-    window.addEventListener('load', () => {
-      const unlockAudio = () => {
-        sound.init();
-        window.removeEventListener('pointerdown', unlockAudio);
-        window.removeEventListener('touchstart', unlockAudio);
-      };
-      window.addEventListener('pointerdown', unlockAudio);
-      window.addEventListener('touchstart', unlockAudio);
+      if (this.isGameOver) return;
 
-      new Phaser.Game(config);
-    });
-  </script>
+      // スポーン
+      this.spawnTimer += dt;
+      const currentInterval = Math.max(1.8 - this.gameTime * 0.01, 0.9);
+      if (this.spawnTimer >= currentInterval) {
+        this.spawnTimer = 0;
+        const count = Phaser.Math.Between(1, this.gameTime > 25 ? 3 : 2);
+        for (let i = 0; i < count; i++) {
+          this.time.delayedCall(i * 150, () => {
+            if (!this.isGameOver) this.spawnTarget();
+          });
+        }
+      }
+
+      // 金の龍スポーン
+      this.dragonSpawnTimer -= dt;
+      if (this.dragonSpawnTimer <= 0) {
+        this.spawnDragon();
+        this.dragonSpawnTimer = Phaser.Math.Between(18, 30);
+      }
+
+      // 画面外落下判定
+      const { height } = this.scale;
+      this.targets.getChildren().forEach(target => {
+        if (!target.active) return;
+        // 一度画面内（y < height - 100）に入ったフラグ
+        if (target.y < height - 100) {
+          target.hasEnteredScreen = true;
+        }
+        // 上昇後に画面下（y > height + 50）へ落下してきたら見逃し処理
+        if (target.hasEnteredScreen && target.y > height + 50 && target.body.velocity.y > 0) {
+          if (target.targetType === 'FOOD' && !target.isSliced) {
+            this.onMissTarget(target);
+          }
+          target.destroy();
+        }
+      });
+    }
+
+    spawnTarget() {
+      const { width, height } = this.scale;
+      const x = Phaser.Math.Between(60, width - 60);
+      const y = height + 30;
+
+      const isBomb = Math.random() < Math.min(0.12 + this.gameTime * 0.002, 0.28);
+      let targetSprite;
+
+      if (isBomb) {
+        targetSprite = this.physics.add.sprite(x, y, 'emoji_bomb');
+        targetSprite.targetType = 'BOMB';
+        targetSprite.hitRadius = 40;
+      } else {
+        const foodIdx = Phaser.Math.Between(0, TARGET_TYPES.FOOD.length - 1);
+        targetSprite = this.physics.add.sprite(x, y, `emoji_food_${foodIdx}`);
+        targetSprite.targetType = 'FOOD';
+        targetSprite.foodData = TARGET_TYPES.FOOD[foodIdx];
+        targetSprite.hitRadius = 44;
+      }
+
+      targetSprite.isSliced = false;
+      targetSprite.hasEnteredScreen = false;
+
+      // 修正後の物理パラメーター（画面中央〜やや上でふんわりターンする放物線）
+      const targetX = width / 2 + Phaser.Math.Between(-120, 120);
+      const vx = (targetX - x) * Phaser.Math.FloatBetween(0.4, 0.7);
+      const vy = Phaser.Math.Between(-720, -820);
+
+      targetSprite.setVelocity(vx, vy);
+      targetSprite.setAngularVelocity(Phaser.Math.Between(-100, 100));
+      targetSprite.setGravityY(420);
+
+      this.targets.add(targetSprite);
+    }
+
+    spawnDragon() {
+      const { width, height } = this.scale;
+      const fromLeft = Math.random() > 0.5;
+      const startX = fromLeft ? -50 : width + 50;
+      const startY = Phaser.Math.Between(height * 0.25, height * 0.45);
+
+      const dragon = this.physics.add.sprite(startX, startY, 'emoji_dragon');
+      dragon.targetType = 'DRAGON';
+      dragon.hitRadius = 50;
+      dragon.isSliced = false;
+
+      const vx = fromLeft ? Phaser.Math.Between(350, 520) : Phaser.Math.Between(-520, -350);
+      const vy = Phaser.Math.Between(-30, 30);
+
+      dragon.setVelocity(vx, vy);
+      dragon.setGravityY(35);
+      dragon.setAngularVelocity(fromLeft ? 80 : -80);
+
+      this.targets.add(dragon);
+    }
+
+    onMissTarget(target) {
+      if (this.isGameOver) return;
+      this.misses++;
+      SoundManager.playMiss();
+
+      let missIcons = '';
+      for (let i = 0; i < this.maxMisses; i++) {
+        missIcons += i < (this.maxMisses - this.misses) ? '⚔️ ' : '❌ ';
+      }
+      this.missText.setText(missIcons.trim());
+
+      const t = I18N[currentLang];
+      const missAlert = this.add.text(target.x, this.scale.height - 40, t.missText, {
+        fontSize: '20px',
+        fontWeight: 'bold',
+        color: '#ef4444',
+        stroke: '#000',
+        strokeThickness: 4
+      }).setOrigin(0.5);
+
+      this.tweens.add({
+        targets: missAlert,
+        y: missAlert.y - 40,
+        alpha: 0,
+        duration: 600,
+        onComplete: () => missAlert.destroy()
+      });
+
+      if (this.misses >= this.maxMisses) {
+        this.triggerGameOver('食材を3回見逃してしまった！');
+      }
+    }
+
+    triggerGameOver(reason = '無念！') {
+      if (this.isGameOver) return;
+      this.isGameOver = true;
+      SoundManager.stopBgm();
+
+      this.cameras.main.shake(300, 0.02);
+      this.time.delayedCall(700, () => {
+        this.scene.start('SceneResult', {
+          score: this.score,
+          reason: reason
+        });
+      });
+    }
+  }
+
+  // ==========================================
+  // 6. 共通リザルトシーン (SceneResult)
+  // ==========================================
+  class SceneResult extends Phaser.Scene {
+    constructor() { super('SceneResult'); }
+
+    init(data) {
+      this.finalScore = data.score || 0;
+      this.reason = data.reason || '';
+    }
+
+    create() {
+      const { width, height } = this.scale;
+      const t = I18N[currentLang];
+
+      SoundManager.stopBgm();
+
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'game_over', { 'score': this.finalScore });
+      }
+
+      let best = parseInt(localStorage.getItem('touken_ranbu_highscore') || localStorage.getItem('slash_samurai_highscore') || '0', 10);
+      const isNew = this.finalScore > best;
+      if (isNew) {
+        best = this.finalScore;
+        localStorage.setItem('touken_ranbu_highscore', best);
+        localStorage.setItem('slash_samurai_highscore', best);
+      }
+
+      // 称号判定
+      let rank = t.rank1;
+      if (this.finalScore >= 1200) rank = t.rank6;
+      else if (this.finalScore >= 700) rank = t.rank5;
+      else if (this.finalScore >= 350) rank = t.rank4;
+      else if (this.finalScore >= 120) rank = t.rank3;
+      else if (this.finalScore >= 40) rank = t.rank2;
+
+      this.add.rectangle(0, 0, width, height, 0x08060d, 0.96).setOrigin(0);
+
+      // GAMEOVER ロゴ
+      this.add.text(width / 2, 135, t.gameOver, {
+        fontSize: '34px',
+        fontFamily: 'system-ui, sans-serif',
+        fontStyle: 'bold',
+        fill: '#ef4444',
+        stroke: '#000',
+        strokeThickness: 5
+      }).setOrigin(0.5);
+
+      // スコア表示
+      this.add.text(width / 2, 210, `${t.score}: ${this.finalScore} 閃`, {
+        fontSize: '36px',
+        fontFamily: 'system-ui, sans-serif',
+        fontStyle: 'bold',
+        fill: '#ffd700'
+      }).setOrigin(0.5);
+
+      this.add.text(width / 2, 255, `🥋 ${t.rank}: 【 ${rank} 】`, {
+        fontSize: '17px',
+        fontStyle: 'bold',
+        fill: '#fde047'
+      }).setOrigin(0.5);
+
+      this.add.text(width / 2, 290, `🏆 ${t.bestScore}: ${best} 閃 ${isNew ? '🔥 NEW!' : ''}`, {
+        fontSize: '16px',
+        fontStyle: 'bold',
+        fill: '#f87171'
+      }).setOrigin(0.5);
+
+      // 1. もう一回 (RETRY)
+      const retryBtn = this.add.rectangle(width / 2, 370, width - 80, 52, 0xdc2626).setInteractive({ useHandCursor: true });
+      this.add.text(width / 2, 370, t.retryBtn, { fontSize: '18px', fontStyle: 'bold', fill: '#fff' }).setOrigin(0.5);
+      retryBtn.on('pointerdown', () => {
+        SoundManager.playTap();
+        this.scene.start('SceneGame');
+      });
+
+      // 2. Xにポスト (SHARE)
+      const shareBtn = this.add.rectangle(width / 2, 440, width - 80, 52, 0x0284c7).setInteractive({ useHandCursor: true });
+      this.add.text(width / 2, 440, t.shareBtn, { fontSize: '18px', fontStyle: 'bold', fill: '#fff' }).setOrigin(0.5);
+      shareBtn.on('pointerdown', () => {
+        SoundManager.playTap();
+        const text = encodeURIComponent(t.shareText.replace('{score}', this.finalScore).replace('{rank}', rank));
+        const url = encodeURIComponent(window.location.href);
+        window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+      });
+
+      // 3. タイトルへ (TITLE)
+      const titleBtn = this.add.rectangle(width / 2 - 95, 520, 160, 46, 0x334155).setInteractive({ useHandCursor: true });
+      this.add.text(width / 2 - 95, 520, t.titleBtn, { fontSize: '14px', fontStyle: 'bold', fill: '#cbd5e1' }).setOrigin(0.5);
+      titleBtn.on('pointerdown', () => {
+        SoundManager.playTap();
+        this.scene.start('SceneTitle');
+      });
+
+      // 4. ポータルへ (MORE GAMES)
+      const portalBtn = this.add.rectangle(width / 2 + 95, 520, 160, 46, 0x475569).setInteractive({ useHandCursor: true });
+      this.add.text(width / 2 + 95, 520, t.portalBtn, { fontSize: '14px', fontStyle: 'bold', fill: '#cbd5e1' }).setOrigin(0.5);
+      portalBtn.on('pointerdown', () => {
+        SoundManager.playTap();
+        window.open('../index.html', '_self');
+      });
+    }
+  }
+
+  // ==========================================
+  // 7. Phaser ゲーム設定・起動
+  // ==========================================
+  const config = {
+    type: Phaser.AUTO,
+    parent: 'game-container',
+    width: 480,
+    height: 800,
+    backgroundColor: '#0d0a14',
+    scale: {
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH
+    },
+    physics: {
+      default: 'arcade',
+      arcade: {
+        gravity: { y: 0 },
+        debug: false
+      }
+    },
+    scene: [SceneTitle, SceneGame, SceneResult]
+  };
+
+  window.addEventListener('DOMContentLoaded', () => {
+    new Phaser.Game(config);
+  });
+
+})();
+</script>
 </body>
 </html>
