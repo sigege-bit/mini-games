@@ -2,23 +2,35 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>超人サッカー</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>超人サッカー - Space Kicker | Shigege Games</title>
+  <meta name="description" content="待ち時間ゼロの超連射キック！立ちはだかる宇宙キーパーとディフェンス陣を粉砕する痛快サッカーアクション『超人サッカー』。">
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-4EBNDS3X7P');
+  </script>
+
   <!-- Phaser 3 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+
   <style>
     * {
-      box-sizing: border-box;
       margin: 0;
       padding: 0;
+      box-sizing: border-box;
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
     }
     body {
-      background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
-      color: #f8fafc;
-      font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #06070d;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -29,18 +41,17 @@
     #game-container {
       position: relative;
       width: 100vw;
-      height: 100vh;
       max-width: 480px;
+      height: 100vh;
       max-height: 854px;
-      box-shadow: 0 0 40px rgba(56, 189, 248, 0.25), 0 0 100px rgba(0, 0, 0, 0.8);
-      border-radius: 12px;
+      box-shadow: 0 0 35px rgba(255, 159, 28, 0.25), 0 0 50px rgba(0, 0, 0, 0.9);
       overflow: hidden;
-      background-color: #000;
+      background: #020617;
     }
     canvas {
       display: block;
-      width: 100% !important;
-      height: 100% !important;
+      margin: auto;
+      touch-action: none;
     }
   </style>
 </head>
@@ -49,1603 +60,1246 @@
 <div id="game-container"></div>
 
 <script>
-/**
- * 超人サッカー (Choujin Soccer)
- * Google Antigravity 2.0 × Phaser 3
- * ゼロアセット構成 (Canvas動的テクスチャ + Web Audio API)
- */
+(function() {
+  'use strict';
 
-// ==========================================
-// 1. Web Audio API サウンド合成エンジン
-// ==========================================
-class SoundSynth {
-  constructor() {
-    this.ctx = null;
-    this.isMuted = false;
-  }
+  // ==========================================
+  // 1. 共通定数・ローカライズ辞書
+  // ==========================================
+  let currentLang = localStorage.getItem('shigege_game_lang') || ((navigator.language && navigator.language.startsWith('ja')) ? 'ja' : 'en');
+  let soundEnabled = (localStorage.getItem('shigege_game_sfx') !== 'false');
 
-  init() {
-    if (!this.ctx) {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new AudioContext();
+  const I18N = {
+    ja: {
+      title: "超人サッカー",
+      subTitle: "狙い撃ち＆超連射！宇宙最強の防衛戦！",
+      howToPlay: "【 あそびかた 】",
+      rule1: "👆 スワイプで狙ってタップで連続シュート！",
+      rule2: "⚡ ボール反射＆コンボで敵軍を粉砕せよ！",
+      rule3: "🛡️ 🚨最下部ゴールラインを死守せよ！",
+      startBtn: "🎮 ゲームスタート",
+      gameOver: "GAME OVER",
+      score: "SCORE",
+      bestScore: "BEST SCORE",
+      wave: "WAVE",
+      retryBtn: "🔄 もう一回",
+      shareBtn: "🐦 Xにポスト",
+      titleBtn: "🏠 タイトルへ",
+      portalBtn: "🌐 他のゲームで遊ぶ",
+      defenseLine: "🚨 DEFENSE LINE 🚨",
+      shareText: "【超人サッカー】でスコア {score} 点 (WAVE {wave}) を達成！ #ShigegeGames"
+    },
+    en: {
+      title: "SPACE KICKER",
+      subTitle: "Aim, curve & rapid-fire cosmic shots!",
+      howToPlay: "【 HOW TO PLAY 】",
+      rule1: "👆 Drag to aim & tap to rapid-fire kicks",
+      rule2: "⚡ Ricochet balls & chain combos to crush foes",
+      rule3: "🛡️ Defend the bottom goal line from breach",
+      startBtn: "🎮 TAP TO START",
+      gameOver: "GAME OVER",
+      score: "SCORE",
+      bestScore: "BEST SCORE",
+      wave: "WAVE",
+      retryBtn: "🔄 RETRY",
+      shareBtn: "🐦 SHARE ON X",
+      titleBtn: "🏠 TITLE",
+      portalBtn: "🌐 MORE GAMES",
+      defenseLine: "🚨 DEFENSE LINE 🚨",
+      shareText: "I scored {score} pts (WAVE {wave}) in 【Space Kicker】! #ShigegeGames"
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
-  }
-
-  // キック/発射音
-  playKick(type = 'NORMAL') {
-    if (!this.ctx || this.isMuted) return;
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    if (type === 'BOMB') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(140, t);
-      osc.frequency.exponentialRampToValueAtTime(30, t + 0.25);
-      gain.gain.setValueAtTime(0.4, t);
-      gain.gain.linearRampToValueAtTime(0.01, t + 0.25);
-    } else if (type === 'FIRE') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(400, t);
-      osc.frequency.exponentialRampToValueAtTime(800, t + 0.15);
-      gain.gain.setValueAtTime(0.3, t);
-      gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
-    } else if (type === 'THUNDER') {
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(600, t);
-      osc.frequency.exponentialRampToValueAtTime(120, t + 0.15);
-      gain.gain.setValueAtTime(0.3, t);
-      gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
-    } else {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(260, t);
-      osc.frequency.exponentialRampToValueAtTime(80, t + 0.12);
-      gain.gain.setValueAtTime(0.35, t);
-      gain.gain.linearRampToValueAtTime(0.01, t + 0.12);
-    }
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.3);
-  }
-
-  // ヒット音（コンボ数に応じてピッチ上昇）
-  playHit(combo = 1) {
-    if (!this.ctx || this.isMuted) return;
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    // ペンタトニック音階の周波数テーブル (C調)
-    const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66];
-    const noteIndex = Math.min(combo - 1, scale.length - 1);
-    const baseFreq = scale[noteIndex] || 440;
-
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(baseFreq, t);
-    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, t + 0.08);
-
-    gain.gain.setValueAtTime(0.3, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.12);
-  }
-
-  // ボム爆発音
-  playExplosion() {
-    if (!this.ctx || this.isMuted) return;
-    const t = this.ctx.currentTime;
-    
-    // ノイズバッファ生成
-    const bufferSize = this.ctx.sampleRate * 0.4;
-    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
-
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(800, t);
-    filter.frequency.linearRampToValueAtTime(50, t + 0.4);
-
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.6, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    noise.start(t);
-    noise.stop(t + 0.45);
-  }
-
-  // パワーアップ取得音
-  playPowerUp() {
-    if (!this.ctx || this.isMuted) return;
-    const t = this.ctx.currentTime;
-    const notes = [523.25, 659.25, 783.99, 1046.50]; // C, E, G, High C
-    notes.forEach((freq, idx) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, t + idx * 0.05);
-      gain.gain.setValueAtTime(0.25, t + idx * 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.05 + 0.15);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(t + idx * 0.05);
-      osc.stop(t + idx * 0.05 + 0.18);
-    });
-  }
-
-  // サンダー分裂音
-  playThunder() {
-    if (!this.ctx || this.isMuted) return;
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(880, t);
-    osc.frequency.setValueAtTime(300, t + 0.04);
-    osc.frequency.setValueAtTime(950, t + 0.08);
-    gain.gain.setValueAtTime(0.3, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.16);
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.18);
-  }
-
-  // 敵撃破音
-  playKill() {
-    if (!this.ctx || this.isMuted) return;
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(200, t);
-    osc.frequency.exponentialRampToValueAtTime(60, t + 0.15);
-    gain.gain.setValueAtTime(0.3, t);
-    gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.18);
-  }
-
-  // ボス出現アラート音
-  playWarning() {
-    if (!this.ctx || this.isMuted) return;
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(500, t);
-    osc.frequency.linearRampToValueAtTime(300, t + 0.25);
-    gain.gain.setValueAtTime(0.4, t);
-    gain.gain.linearRampToValueAtTime(0.01, t + 0.25);
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.28);
-  }
-
-  // ゲームオーバー音
-  playGameOver() {
-    if (!this.ctx || this.isMuted) return;
-    const t = this.ctx.currentTime;
-    const notes = [440, 415, 392, 349];
-    notes.forEach((freq, idx) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, t + idx * 0.18);
-      gain.gain.setValueAtTime(0.35, t + idx * 0.18);
-      gain.gain.linearRampToValueAtTime(0.01, t + idx * 0.18 + 0.25);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(t + idx * 0.18);
-      osc.stop(t + idx * 0.18 + 0.28);
-    });
-  }
-}
-
-const sounds = new SoundSynth();
-
-// ==========================================
-// 2. テクスチャ生成ユーティリティ (Canvas)
-// ==========================================
-function createEmojiTexture(scene, key, emoji, size = 48, glowColor = null) {
-  const canvas = document.createElement('canvas');
-  canvas.width = size * 1.5;
-  canvas.height = size * 1.5;
-  const ctx = canvas.getContext('2d');
-
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-
-  if (glowColor) {
-    ctx.save();
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 18;
-    ctx.fillStyle = glowColor;
-    ctx.beginPath();
-    ctx.arc(cx, cy, size * 0.45, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  ctx.font = `${size}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(emoji, cx, cy + size * 0.08);
-
-  scene.textures.addCanvas(key, canvas);
-}
-
-function createCircleTexture(scene, key, radius, color, glow = null) {
-  const canvas = document.createElement('canvas');
-  const d = (radius + (glow ? 12 : 2)) * 2;
-  canvas.width = d;
-  canvas.height = d;
-  const ctx = canvas.getContext('2d');
-  const cx = d / 2;
-  const cy = d / 2;
-
-  if (glow) {
-    ctx.shadowColor = glow;
-    ctx.shadowBlur = 12;
-  }
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fill();
-
-  scene.textures.addCanvas(key, canvas);
-}
-
-// ==========================================
-// 3. BootScene (初期化 & テクスチャ生成)
-// ==========================================
-class BootScene extends Phaser.Scene {
-  constructor() {
-    super({ key: 'BootScene' });
-  }
-
-  create() {
-    // ボール絵文字テクスチャ
-    createEmojiTexture(this, 'ball_normal', '⚽', 36, 'rgba(56, 189, 248, 0.4)');
-    createEmojiTexture(this, 'ball_bomb', '💣', 38, 'rgba(239, 68, 68, 0.7)');
-    createEmojiTexture(this, 'ball_fire', '🔥', 40, 'rgba(249, 115, 22, 0.8)');
-    createEmojiTexture(this, 'ball_thunder', '⚡', 40, 'rgba(234, 179, 8, 0.8)');
-
-    // 敵絵文字テクスチャ
-    createEmojiTexture(this, 'enemy_zako', '👾', 42, 'rgba(168, 85, 247, 0.4)');
-    createEmojiTexture(this, 'enemy_speed', '👽', 38, 'rgba(34, 197, 94, 0.5)');
-    createEmojiTexture(this, 'enemy_ufo', '🛸', 46, 'rgba(6, 182, 212, 0.6)');
-    createEmojiTexture(this, 'enemy_giant', '🧟', 56, 'rgba(236, 72, 153, 0.6)');
-    createEmojiTexture(this, 'enemy_boss', '🦖', 76, 'rgba(225, 29, 72, 0.8)');
-
-    // アイテムドロップテクスチャ
-    createEmojiTexture(this, 'item_bomb', '💣', 32, 'rgba(239, 68, 68, 0.8)');
-    createEmojiTexture(this, 'item_fire', '🔥', 32, 'rgba(249, 115, 22, 0.8)');
-    createEmojiTexture(this, 'item_thunder', '⚡', 32, 'rgba(234, 179, 8, 0.8)');
-
-    // パーティクル用
-    createCircleTexture(this, 'spark_blue', 4, '#38bdf8', '#38bdf8');
-    createCircleTexture(this, 'spark_orange', 5, '#f97316', '#ea580c');
-    createCircleTexture(this, 'spark_yellow', 4, '#fde047', '#eab308');
-    createCircleTexture(this, 'spark_red', 6, '#ef4444', '#b91c1c');
-    createCircleTexture(this, 'spark_white', 3, '#ffffff', '#ffffff');
-
-    // キッカーアイコン
-    createEmojiTexture(this, 'kicker_pedestal', '👟', 44, 'rgba(56, 189, 248, 0.6)');
-
-    this.scene.start('TitleScene');
-  }
-}
-
-// ==========================================
-// 4. TitleScene (タイトル画面)
-// ==========================================
-class TitleScene extends Phaser.Scene {
-  constructor() {
-    super({ key: 'TitleScene' });
-  }
-
-  create() {
-    const { width, height } = this.scale;
-    const highScore = localStorage.getItem('choujin_soccer_highscore') || localStorage.getItem('space_kicker_highscore') || 0;
-
-    // 背景星屑パーティクル
-    this.createStarfield();
-
-    // タイトルロゴ
-    const titleText = this.add.text(width / 2, height * 0.22, '超人サッカー', {
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      fontSize: '48px',
-      fontWeight: '900',
-      align: 'center',
-      color: '#ffffff',
-      stroke: '#0284c7',
-      strokeThickness: 8,
-      shadow: { color: '#38bdf8', fill: true, blur: 20, offsetY: 0 }
-    }).setOrigin(0.5);
-
-    this.tweens.add({
-      targets: titleText,
-      y: height * 0.22 - 8,
-      duration: 1200,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-
-    // サブタイトル
-    this.add.text(width / 2, height * 0.35, '⚡ 待ち時間ゼロの爆速キック防衛戦 ⚡', {
-      fontSize: '15px',
-      fontWeight: '700',
-      color: '#38bdf8',
-      align: 'center'
-    }).setOrigin(0.5);
-
-    // キャラクタープレビュー演出
-    const demoBall = this.add.sprite(width / 2, height * 0.44, 'ball_normal').setScale(1.2);
-    this.tweens.add({
-      targets: demoBall,
-      scaleX: 1.4,
-      scaleY: 1.4,
-      rotation: Math.PI * 2,
-      duration: 2000,
-      repeat: -1,
-      yoyo: true,
-      ease: 'Cubic.easeInOut'
-    });
-
-    // 操作説明
-    const howtoBox = this.add.graphics();
-    howtoBox.fillStyle(0x0f172a, 0.85);
-    howtoBox.lineStyle(2, 0x38bdf8, 0.8);
-    howtoBox.fillRoundedRect(width * 0.1, height * 0.52, width * 0.8, 140, 12);
-    howtoBox.strokeRoundedRect(width * 0.1, height * 0.52, width * 0.8, 140, 12);
-
-    this.add.text(width / 2, height * 0.52 + 22, '【 あそびかた 】', {
-      fontSize: '16px',
-      fontWeight: '800',
-      color: '#facc15'
-    }).setOrigin(0.5);
-
-    this.add.text(width / 2, height * 0.52 + 70, '👆 画面をスワイプ＆タップで狙い撃ち！\n⚽ 前のボールが動いていても超連射OK！\n🛡️ 最下部ゴールラインを死守せよ！', {
-      fontSize: '13px',
-      fontWeight: '600',
-      color: '#e2e8f0',
-      align: 'center',
-      lineSpacing: 8
-    }).setOrigin(0.5);
-
-    // ハイスコア表示
-    this.add.text(width / 2, height * 0.72, `🏆 HIGH SCORE: ${highScore}`, {
-      fontSize: '18px',
-      fontWeight: '800',
-      color: '#f472b6'
-    }).setOrigin(0.5);
-
-    // STARTボタン
-    const startBtn = this.add.container(width / 2, height * 0.83);
-    const btnBg = this.add.graphics();
-    btnBg.fillStyle(0x0284c7, 1);
-    btnBg.lineStyle(3, 0x38bdf8, 1);
-    btnBg.fillRoundedRect(-120, -28, 240, 56, 28);
-    btnBg.strokeRoundedRect(-120, -28, 240, 56, 28);
-
-    const btnText = this.add.text(0, 0, 'KICK START!', {
-      fontSize: '22px',
-      fontWeight: '900',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-
-    startBtn.add([btnBg, btnText]);
-    startBtn.setSize(240, 56);
-    startBtn.setInteractive({ useHandCursor: true });
-
-    this.tweens.add({
-      targets: startBtn,
-      scaleX: 1.05,
-      scaleY: 1.05,
-      duration: 700,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Quad.easeInOut'
-    });
-
-    startBtn.on('pointerdown', () => {
-      sounds.init();
-      sounds.playKick('NORMAL');
-      this.cameras.main.fade(250, 0, 0, 0, false, (cam, progress) => {
-        if (progress === 1) {
-          this.scene.start('MainScene');
-        }
-      });
-    });
-  }
-
-  createStarfield() {
-    const { width, height } = this.scale;
-    const starGraphics = this.add.graphics();
-    for (let i = 0; i < 60; i++) {
-      const x = Phaser.Math.Between(0, width);
-      const y = Phaser.Math.Between(0, height);
-      const r = Phaser.Math.FloatBetween(0.5, 2.0);
-      const a = Phaser.Math.FloatBetween(0.2, 0.9);
-      starGraphics.fillStyle(0xffffff, a);
-      starGraphics.fillCircle(x, y, r);
-    }
-  }
-}
-
-// ==========================================
-// 5. MainScene (ゲーム本編)
-// ==========================================
-class MainScene extends Phaser.Scene {
-  constructor() {
-    super({ key: 'MainScene' });
-  }
-
-  create() {
-    const { width, height } = this.scale;
-    this.score = 0;
-    this.highScore = parseInt(localStorage.getItem('choujin_soccer_highscore') || localStorage.getItem('space_kicker_highscore') || '0', 10);
-    this.wave = 1;
-    this.combo = 0;
-    this.comboTimer = 0;
-    this.isGameOver = false;
-
-    // パワーアップストック: [{ type: 'BOMB', count: 3 }]
-    this.powerUpStock = [];
-
-    // 背景描画
-    this.createSpaceBackground();
-
-    // 防衛ゴールライン (y: 770)
-    this.goalY = height - 84;
-    this.createDefenseLine();
-
-    // キッカー発射台 (x: 240, y: 780)
-    this.kickerX = width / 2;
-    this.kickerY = this.goalY + 20;
-    this.kicker = this.add.sprite(this.kickerX, this.kickerY, 'kicker_pedestal').setScale(1.1);
-
-    // グループ作成
-    this.balls = this.physics.add.group();
-    this.enemies = this.physics.add.group();
-    this.items = this.physics.add.group();
-
-    // 照準ガイドライン
-    this.aimGraphics = this.add.graphics();
-    this.isAiming = false;
-    this.aimStartPos = new Phaser.Math.Vector2();
-    this.aimCurrentPos = new Phaser.Math.Vector2();
-
-    // UI作成
-    this.createUI();
-
-    // 入力イベント
-    this.input.on('pointerdown', this.onPointerDown, this);
-    this.input.on('pointermove', this.onPointerMove, this);
-    this.input.on('pointerup', this.onPointerUp, this);
-
-    // 物理コリジョン設定 (画面下部以外をワールド境界として反射)
-    this.physics.world.setBounds(0, 0, width, height + 120);
-
-    // 敵とボールの衝突判定（Overlapベースで密集時・超高速時でも100%確実にダメージ＆全方位反射）
-    this.physics.add.overlap(
-      this.balls,
-      this.enemies,
-      this.handleBallEnemyOverlap,
-      null,
-      this
-    );
-
-    // アイテム取得判定 (Overlap)
-    this.physics.add.overlap(this.balls, this.items, this.handleBallItemOverlap, null, this);
-
-    // ウェーブ・敵出現タイマー
-    this.enemySpawnTimer = 0;
-    this.spawnInterval = 2200; // ms
-    this.waveTimer = this.time.addEvent({
-      delay: 15000,
-      callback: this.nextWave,
-      callbackScope: this,
-      loop: true
-    });
-  }
-
-  createSpaceBackground() {
-    const { width, height } = this.scale;
-    // グリッドライン
-    this.gridGraphics = this.add.graphics();
-    this.gridGraphics.lineStyle(1, 0x1e293b, 0.4);
-    for (let x = 0; x < width; x += 40) {
-      this.gridGraphics.moveTo(x, 0);
-      this.gridGraphics.lineTo(x, height);
-    }
-    for (let y = 0; y < height; y += 40) {
-      this.gridGraphics.moveTo(0, y);
-      this.gridGraphics.lineTo(width, y);
-    }
-    this.gridGraphics.strokePath();
-
-    // 流れる星
-    this.stars = [];
-    for (let i = 0; i < 45; i++) {
-      const star = this.add.circle(
-        Phaser.Math.Between(0, width),
-        Phaser.Math.Between(0, height),
-        Phaser.Math.FloatBetween(0.6, 2.2),
-        0x38bdf8,
-        Phaser.Math.FloatBetween(0.2, 0.8)
-      );
-      this.stars.push({
-        obj: star,
-        speed: Phaser.Math.FloatBetween(0.4, 2.0)
-      });
-    }
-  }
-
-  createDefenseLine() {
-    const { width } = this.scale;
-    this.defenseGraphics = this.add.graphics();
-    this.defenseGraphics.lineStyle(3, 0xef4444, 0.9);
-    this.defenseGraphics.moveTo(0, this.goalY);
-    this.defenseGraphics.lineTo(width, this.goalY);
-    this.defenseGraphics.strokePath();
-
-    // ネオン発光バー
-    this.add.text(width / 2, this.goalY - 12, '🚨 DEFENSE LINE 🚨', {
-      fontSize: '11px',
-      fontWeight: '800',
-      color: '#f87171'
-    }).setOrigin(0.5);
-  }
-
-  createUI() {
-    const { width } = this.scale;
-
-    // トップバー背景
-    const topBar = this.add.graphics();
-    topBar.fillStyle(0x0f172a, 0.85);
-    topBar.fillRect(0, 0, width, 56);
-    topBar.lineStyle(1, 0x334155, 1);
-    topBar.moveTo(0, 56);
-    topBar.lineTo(width, 56);
-    topBar.strokePath();
-
-    // スコア
-    this.scoreText = this.add.text(16, 12, 'SCORE: 0', {
-      fontSize: '18px',
-      fontWeight: '900',
-      color: '#38bdf8'
-    });
-
-    // ウェーブ
-    this.waveText = this.add.text(width / 2, 12, 'WAVE 1', {
-      fontSize: '18px',
-      fontWeight: '900',
-      color: '#facc15'
-    }).setOrigin(0.5, 0);
-
-    // ハイスコア
-    this.highScoreText = this.add.text(width - 16, 12, `HI: ${this.highScore}`, {
-      fontSize: '16px',
-      fontWeight: '800',
-      color: '#94a3b8'
-    }).setOrigin(1, 0);
-
-    // 装填中特殊弾UIバッジ
-    this.stockBadge = this.add.container(width / 2, this.kickerY - 45);
-    this.stockBadgeBg = this.add.graphics();
-    this.stockBadgeText = this.add.text(0, 0, '', {
-      fontSize: '13px',
-      fontWeight: '800',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-    this.stockBadge.add([this.stockBadgeBg, this.stockBadgeText]);
-    this.stockBadge.setVisible(false);
-
-    // コンボ表示用
-    this.comboText = this.add.text(width / 2, 180, '', {
-      fontSize: '32px',
-      fontWeight: '900',
-      color: '#f43f5e',
-      stroke: '#ffffff',
-      strokeThickness: 4,
-      shadow: { color: '#f43f5e', fill: true, blur: 15 }
-    }).setOrigin(0.5).setAlpha(0);
-  }
-
-  update(time, delta) {
-    if (this.isGameOver) return;
-
-    // 背景星の移動
-    const { height } = this.scale;
-    this.stars.forEach(s => {
-      s.obj.y += s.speed;
-      if (s.obj.y > height) {
-        s.obj.y = 0;
-        s.obj.x = Phaser.Math.Between(0, this.scale.width);
+  };
+
+  // ==========================================
+  // 2. Web Audio API サウンド合成エンジン
+  // ==========================================
+  class SoundSynth {
+    static ctx = null;
+
+    static init() {
+      if (!this.ctx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) this.ctx = new AudioContextClass();
       }
-    });
+    }
 
-    // コンボタイマー減衰
-    if (this.combo > 0) {
-      this.comboTimer -= delta;
-      if (this.comboTimer <= 0) {
-        this.combo = 0;
-        this.tweens.add({
-          targets: this.comboText,
-          alpha: 0,
-          scale: 0.5,
-          duration: 200
+    static resume() {
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
+    }
+
+    static playKick(type = 'NORMAL') {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      if (type === 'BOMB') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, t);
+        osc.frequency.exponentialRampToValueAtTime(30, t + 0.25);
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.linearRampToValueAtTime(0.01, t + 0.25);
+      } else if (type === 'FIRE') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(400, t);
+        osc.frequency.exponentialRampToValueAtTime(800, t + 0.15);
+        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
+      } else if (type === 'THUNDER') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(600, t);
+        osc.frequency.exponentialRampToValueAtTime(120, t + 0.15);
+        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
+      } else {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(260, t);
+        osc.frequency.exponentialRampToValueAtTime(80, t + 0.12);
+        gain.gain.setValueAtTime(0.35, t);
+        gain.gain.linearRampToValueAtTime(0.01, t + 0.12);
+      }
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.3);
+    }
+
+    static playHit(combo = 1) {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66];
+      const noteIndex = Math.min(combo - 1, scale.length - 1);
+      const baseFreq = scale[noteIndex] || 440;
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(baseFreq, t);
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, t + 0.08);
+
+      gain.gain.setValueAtTime(0.28, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.12);
+    }
+
+    static playExplosion() {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      const t = this.ctx.currentTime;
+      const bufferSize = this.ctx.sampleRate * 0.35;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(800, t);
+      filter.frequency.linearRampToValueAtTime(50, t + 0.35);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.5, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.35);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      noise.start(t);
+      noise.stop(t + 0.4);
+    }
+
+    static playPowerUp() {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      const t = this.ctx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + idx * 0.05);
+        gain.gain.setValueAtTime(0.2, t + idx * 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.05 + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t + idx * 0.05);
+        osc.stop(t + idx * 0.05 + 0.18);
+      });
+    }
+
+    static playThunder() {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(880, t);
+      osc.frequency.setValueAtTime(300, t + 0.04);
+      osc.frequency.setValueAtTime(950, t + 0.08);
+      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.16);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.18);
+    }
+
+    static playKill() {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(200, t);
+      osc.frequency.exponentialRampToValueAtTime(60, t + 0.15);
+      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.18);
+    }
+
+    static playWarning() {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(500, t);
+      osc.frequency.linearRampToValueAtTime(300, t + 0.25);
+      gain.gain.setValueAtTime(0.35, t);
+      gain.gain.linearRampToValueAtTime(0.01, t + 0.25);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.28);
+    }
+
+    static playGameOver() {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      const t = this.ctx.currentTime;
+      const notes = [440, 415, 392, 349];
+      notes.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t + idx * 0.16);
+        gain.gain.setValueAtTime(0.3, t + idx * 0.16);
+        gain.gain.linearRampToValueAtTime(0.01, t + idx * 0.16 + 0.22);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t + idx * 0.16);
+        osc.stop(t + idx * 0.16 + 0.25);
+      });
+    }
+
+    static playTap() {
+      if (!soundEnabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.resume();
+
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    }
+  }
+
+  // ==========================================
+  // 3. テクスチャ生成ユーティリティ (Canvas)
+  // ==========================================
+  function createEmojiTexture(scene, key, emoji, size = 48, glowColor = null) {
+    if (scene.textures.exists(key)) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = size * 1.5;
+    canvas.height = size * 1.5;
+    const ctx = canvas.getContext('2d');
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+
+    if (glowColor) {
+      ctx.save();
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = glowColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.font = `${size}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, cx, cy + size * 0.08);
+
+    scene.textures.addCanvas(key, canvas);
+  }
+
+  function createCircleTexture(scene, key, radius, color, glow = null) {
+    if (scene.textures.exists(key)) return;
+    const canvas = document.createElement('canvas');
+    const d = (radius + (glow ? 12 : 2)) * 2;
+    canvas.width = d;
+    canvas.height = d;
+    const ctx = canvas.getContext('2d');
+    const cx = d / 2;
+    const cy = d / 2;
+
+    if (glow) {
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = 12;
+    }
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    scene.textures.addCanvas(key, canvas);
+  }
+
+  function initAllTextures(scene) {
+    createEmojiTexture(scene, 'ball_normal', '⚽', 36, 'rgba(56, 189, 248, 0.4)');
+    createEmojiTexture(scene, 'ball_bomb', '💣', 38, 'rgba(239, 68, 68, 0.7)');
+    createEmojiTexture(scene, 'ball_fire', '🔥', 40, 'rgba(249, 115, 22, 0.8)');
+    createEmojiTexture(scene, 'ball_thunder', '⚡', 40, 'rgba(234, 179, 8, 0.8)');
+
+    createEmojiTexture(scene, 'enemy_zako', '👾', 42, 'rgba(168, 85, 247, 0.4)');
+    createEmojiTexture(scene, 'enemy_speed', '👽', 38, 'rgba(34, 197, 94, 0.5)');
+    createEmojiTexture(scene, 'enemy_ufo', '🛸', 46, 'rgba(6, 182, 212, 0.6)');
+    createEmojiTexture(scene, 'enemy_giant', '🧟', 56, 'rgba(236, 72, 153, 0.6)');
+    createEmojiTexture(scene, 'enemy_boss', '🦖', 76, 'rgba(225, 29, 72, 0.8)');
+
+    createEmojiTexture(scene, 'item_bomb', '💣', 32, 'rgba(239, 68, 68, 0.8)');
+    createEmojiTexture(scene, 'item_fire', '🔥', 32, 'rgba(249, 115, 22, 0.8)');
+    createEmojiTexture(scene, 'item_thunder', '⚡', 32, 'rgba(234, 179, 8, 0.8)');
+
+    createCircleTexture(scene, 'spark_blue', 4, '#38bdf8', '#38bdf8');
+    createCircleTexture(scene, 'spark_orange', 5, '#f97316', '#ea580c');
+    createCircleTexture(scene, 'spark_yellow', 4, '#fde047', '#eab308');
+    createCircleTexture(scene, 'spark_red', 6, '#ef4444', '#b91c1c');
+    createCircleTexture(scene, 'spark_white', 3, '#ffffff', '#ffffff');
+
+    createEmojiTexture(scene, 'kicker_pedestal', '👟', 44, 'rgba(56, 189, 248, 0.6)');
+  }
+
+  // ==========================================
+  // 4. 共通タイトルシーン (SceneTitle)
+  // ==========================================
+  class SceneTitle extends Phaser.Scene {
+    constructor() { super('SceneTitle'); }
+
+    create() {
+      initAllTextures(this);
+      const { width, height } = this.scale;
+      const t = I18N[currentLang];
+      const highScore = localStorage.getItem('choujin_soccer_highscore') || localStorage.getItem('space_kicker_highscore') || 0;
+
+      // 背景
+      const bg = this.add.graphics();
+      bg.fillGradientStyle(0x0f172a, 0x0f172a, 0x020617, 0x020617, 1);
+      bg.fillRect(0, 0, width, height);
+
+      // 星屑
+      this.createStarfield();
+
+      // --- トップバー (UIトグル) ---
+      this.createHeaderUI(width);
+
+      // タイトルロゴ
+      this.add.text(width / 2, 175, t.title, {
+        fontSize: '36px',
+        fontFamily: 'system-ui, sans-serif',
+        fontStyle: 'bold',
+        fill: '#ffffff',
+        stroke: '#0284c7',
+        strokeThickness: 6,
+        shadow: { color: '#38bdf8', fill: true, blur: 20 }
+      }).setOrigin(0.5);
+
+      this.add.text(width / 2, 218, t.subTitle, {
+        fontSize: '13px',
+        fill: '#94a3b8'
+      }).setOrigin(0.5);
+
+      // メインボールアニメーション
+      const demoBall = this.add.text(width / 2, 288, '⚽', { fontSize: '70px' }).setOrigin(0.5);
+      this.tweens.add({
+        targets: demoBall,
+        scale: 1.15,
+        rotation: Math.PI * 2,
+        yoyo: true,
+        repeat: -1,
+        duration: 1200,
+        ease: 'Cubic.easeInOut'
+      });
+
+      // 遊び方カード
+      const card = this.add.graphics();
+      card.fillStyle(0x0f172a, 0.9);
+      card.lineStyle(1, 0x38bdf8, 0.5);
+      card.strokeRoundedRect(28, 355, width - 56, 175, 16);
+      card.fillRoundedRect(28, 355, width - 56, 175, 16);
+
+      this.add.text(width / 2, 380, t.howToPlay, { fontSize: '15px', fontStyle: 'bold', fill: '#facc15' }).setOrigin(0.5);
+      this.add.text(width / 2, 420, t.rule1, { fontSize: '13px', fill: '#cbd5e1' }).setOrigin(0.5);
+      this.add.text(width / 2, 455, t.rule2, { fontSize: '13px', fill: '#fbbf24' }).setOrigin(0.5);
+      this.add.text(width / 2, 490, t.rule3, { fontSize: '13px', fill: '#f87171' }).setOrigin(0.5);
+
+      // ハイスコア表示
+      this.add.text(width / 2, 560, `🏆 ${t.bestScore}: ${highScore}`, {
+        fontSize: '16px',
+        fontStyle: 'bold',
+        fill: '#38bdf8'
+      }).setOrigin(0.5);
+
+      // スタートボタン（ふわふわ浮遊＆パルスアニメーション）
+      const btnContainer = this.add.container(width / 2, 635);
+
+      const startBtn = this.add.rectangle(0, 0, width - 80, 54, 0x0284c7)
+        .setStrokeStyle(2, 0x38bdf8, 0.9)
+        .setInteractive({ useHandCursor: true });
+      const startTxt = this.add.text(0, 0, t.startBtn, {
+        fontSize: '18px',
+        fontStyle: 'bold',
+        fill: '#ffffff'
+      }).setOrigin(0.5);
+
+      btnContainer.add([startBtn, startTxt]);
+
+      this.tweens.add({
+        targets: btnContainer,
+        y: 627,
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 750,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      startBtn.on('pointerdown', () => {
+        SoundSynth.playTap();
+        SoundSynth.playKick('NORMAL');
+        this.scene.start('SceneGame');
+      });
+    }
+
+    createHeaderUI(w) {
+      // サウンド切替ピル
+      const sfxBg = this.add.rectangle(80, 42, 110, 32, soundEnabled ? 0x0369a1 : 0x1e293b, 0.9)
+        .setStrokeStyle(1, soundEnabled ? 0x38bdf8 : 0x475569)
+        .setInteractive({ useHandCursor: true });
+      this.add.text(80, 42, soundEnabled ? '🔊 SFX ON' : '🔇 OFF', {
+        fontSize: '12px', fontStyle: 'bold', fill: '#fff'
+      }).setOrigin(0.5);
+
+      sfxBg.on('pointerdown', () => {
+        soundEnabled = !soundEnabled;
+        localStorage.setItem('shigege_game_sfx', soundEnabled ? 'true' : 'false');
+        SoundSynth.playTap();
+        this.scene.restart();
+      });
+
+      // 言語切替ピル
+      const langBg = this.add.rectangle(w - 80, 42, 110, 32, 0x1e293b, 0.9)
+        .setStrokeStyle(1, 0x38bdf8, 0.5)
+        .setInteractive({ useHandCursor: true });
+      this.add.text(w - 80, 42, currentLang === 'ja' ? '🇯🇵 日本語' : '🇺🇸 English', {
+        fontSize: '12px', fontStyle: 'bold', fill: '#38bdf8'
+      }).setOrigin(0.5);
+
+      langBg.on('pointerdown', () => {
+        currentLang = currentLang === 'ja' ? 'en' : 'ja';
+        localStorage.setItem('shigege_game_lang', currentLang);
+        SoundSynth.playTap();
+        this.scene.restart();
+      });
+    }
+
+    createStarfield() {
+      const { width, height } = this.scale;
+      const starGraphics = this.add.graphics();
+      for (let i = 0; i < 50; i++) {
+        const x = Phaser.Math.Between(0, width);
+        const y = Phaser.Math.Between(0, height);
+        const r = Phaser.Math.FloatBetween(0.6, 2.0);
+        const a = Phaser.Math.FloatBetween(0.2, 0.8);
+        starGraphics.fillStyle(0xffffff, a);
+        starGraphics.fillCircle(x, y, r);
+      }
+    }
+  }
+
+  // ==========================================
+  // 5. メインゲームシーン (SceneGame)
+  // ==========================================
+  class SceneGame extends Phaser.Scene {
+    constructor() { super('SceneGame'); }
+
+    create() {
+      const { width, height } = this.scale;
+      this.score = 0;
+      this.highScore = parseInt(localStorage.getItem('choujin_soccer_highscore') || localStorage.getItem('space_kicker_highscore') || '0', 10);
+      this.wave = 1;
+      this.combo = 0;
+      this.comboTimer = 0;
+      this.isGameOver = false;
+
+      this.powerUpStock = [];
+
+      this.createSpaceBackground();
+
+      // 防衛ゴールライン (y: height - 84)
+      this.goalY = height - 84;
+      this.createDefenseLine();
+
+      // キッカー発射台
+      this.kickerX = width / 2;
+      this.kickerY = this.goalY + 20;
+      this.kicker = this.add.sprite(this.kickerX, this.kickerY, 'kicker_pedestal').setScale(1.1);
+
+      // グループ
+      this.balls = this.physics.add.group();
+      this.enemies = this.physics.add.group();
+      this.items = this.physics.add.group();
+
+      // 照準ガイドライン
+      this.aimGraphics = this.add.graphics().setDepth(50);
+      this.isAiming = false;
+      this.aimStartPos = new Phaser.Math.Vector2();
+      this.aimCurrentPos = new Phaser.Math.Vector2();
+
+      this.createUI();
+
+      this.input.on('pointerdown', this.onPointerDown, this);
+      this.input.on('pointermove', this.onPointerMove, this);
+      this.input.on('pointerup', this.onPointerUp, this);
+
+      this.physics.world.setBounds(0, 0, width, height + 120);
+
+      this.physics.add.overlap(this.balls, this.enemies, this.handleBallEnemyOverlap, null, this);
+      this.physics.add.overlap(this.balls, this.items, this.handleBallItemOverlap, null, this);
+
+      this.enemySpawnTimer = 0;
+      this.spawnInterval = 2200;
+      this.waveTimer = this.time.addEvent({
+        delay: 15000,
+        callback: this.nextWave,
+        callbackScope: this,
+        loop: true
+      });
+    }
+
+    createSpaceBackground() {
+      const { width, height } = this.scale;
+      this.gridGraphics = this.add.graphics();
+      this.gridGraphics.lineStyle(1, 0x1e293b, 0.4);
+      for (let x = 0; x < width; x += 40) {
+        this.gridGraphics.moveTo(x, 0);
+        this.gridGraphics.lineTo(x, height);
+      }
+      for (let y = 0; y < height; y += 40) {
+        this.gridGraphics.moveTo(0, y);
+        this.gridGraphics.lineTo(width, y);
+      }
+      this.gridGraphics.strokePath();
+
+      this.stars = [];
+      for (let i = 0; i < 40; i++) {
+        const star = this.add.circle(
+          Phaser.Math.Between(0, width),
+          Phaser.Math.Between(0, height),
+          Phaser.Math.FloatBetween(0.6, 2.0),
+          0x38bdf8,
+          Phaser.Math.FloatBetween(0.2, 0.8)
+        );
+        this.stars.push({ obj: star, speed: Phaser.Math.FloatBetween(0.4, 1.8) });
+      }
+    }
+
+    createDefenseLine() {
+      const { width } = this.scale;
+      const t = I18N[currentLang];
+      this.defenseGraphics = this.add.graphics();
+      this.defenseGraphics.lineStyle(3, 0xef4444, 0.9);
+      this.defenseGraphics.moveTo(0, this.goalY);
+      this.defenseGraphics.lineTo(width, this.goalY);
+      this.defenseGraphics.strokePath();
+
+      this.add.text(width / 2, this.goalY - 12, t.defenseLine, {
+        fontSize: '11px',
+        fontWeight: '800',
+        color: '#f87171'
+      }).setOrigin(0.5);
+    }
+
+    createUI() {
+      const { width } = this.scale;
+      const t = I18N[currentLang];
+
+      const topBar = this.add.graphics();
+      topBar.fillStyle(0x0f172a, 0.85);
+      topBar.fillRect(0, 0, width, 52);
+      topBar.lineStyle(1, 0x334155, 1);
+      topBar.moveTo(0, 52);
+      topBar.lineTo(width, 52);
+      topBar.strokePath();
+
+      this.scoreText = this.add.text(16, 12, `SCORE: 0`, {
+        fontSize: '17px',
+        fontWeight: '900',
+        color: '#38bdf8'
+      });
+
+      this.waveText = this.add.text(width / 2, 12, `${t.wave} 1`, {
+        fontSize: '17px',
+        fontWeight: '900',
+        color: '#facc15'
+      }).setOrigin(0.5, 0);
+
+      this.highScoreText = this.add.text(width - 16, 12, `HI: ${this.highScore}`, {
+        fontSize: '17px',
+        fontWeight: '900',
+        color: '#f472b6'
+      }).setOrigin(1, 0);
+
+      this.stockText = this.add.text(16, 62, '', {
+        fontSize: '14px',
+        fontWeight: '800',
+        color: '#ffffff'
+      }).setDepth(100);
+
+      this.comboText = this.add.text(width / 2, 100, '', {
+        fontSize: '24px',
+        fontWeight: '900',
+        color: '#facc15',
+        stroke: '#000000',
+        strokeThickness: 4
+      }).setOrigin(0.5).setDepth(100).setAlpha(0);
+    }
+
+    update(time, delta) {
+      if (this.isGameOver) return;
+
+      if (this.stars) {
+        this.stars.forEach(s => {
+          s.obj.y += s.speed;
+          if (s.obj.y > this.scale.height) s.obj.y = 0;
         });
       }
-    }
 
-    // 敵の出現管理
-    this.enemySpawnTimer += delta;
-    if (this.enemySpawnTimer >= this.spawnInterval) {
-      this.enemySpawnTimer = 0;
-      this.spawnEnemyWave();
-    }
-
-    // 敵の移動＆ゴールライン突破チェック
-    this.enemies.getChildren().forEach(enemy => {
-      if (!enemy.active || !enemy.body) return;
-      if (enemy.updateAI) enemy.updateAI(time, delta);
-      if (enemy.active && enemy.y + enemy.height * 0.3 >= this.goalY) {
-        this.triggerGameOver();
-      }
-    });
-
-    // ボールの寿命＆挙動管理
-    this.balls.getChildren().forEach(ball => {
-      ball.updateBall(time, delta);
-    });
-
-    // アイテムの更新
-    this.items.getChildren().forEach(item => {
-      item.y += 0.8;
-      if (item.y > this.goalY) {
-        item.destroy();
-      }
-    });
-
-    // 照準線の描画
-    this.drawAimGuide();
-  }
-
-  // ====================
-  // 操作 (直感ダイレクトエイム & タップ連射)
-  // ====================
-  onPointerDown(pointer) {
-    if (this.isGameOver) return;
-    this.isAiming = true;
-    this.aimStartPos.set(pointer.x, pointer.y);
-    this.aimCurrentPos.set(pointer.x, pointer.y);
-  }
-
-  onPointerMove(pointer) {
-    if (!this.isAiming) return;
-    this.aimCurrentPos.set(pointer.x, pointer.y);
-  }
-
-  onPointerUp(pointer) {
-    if (!this.isAiming || this.isGameOver) return;
-    this.isAiming = false;
-    this.aimGraphics.clear();
-
-    const dx = this.aimCurrentPos.x - this.aimStartPos.x;
-    const dy = this.aimCurrentPos.y - this.aimStartPos.y;
-    const dragDistance = Math.sqrt(dx * dx + dy * dy);
-
-    let launchAngle;
-    let speed;
-
-    if (dragDistance < 12) {
-      // 【タップ操作】発射台からタップ位置へ向けて直接キック！(画面をポンポン連打でマシンガン連射)
-      const tapDx = pointer.x - this.kickerX;
-      let tapDy = pointer.y - this.kickerY;
-      if (tapDy > -20) tapDy = -20; // 常に上方向
-
-      launchAngle = Math.atan2(tapDy, tapDx);
-      launchAngle = Phaser.Math.Clamp(launchAngle, -Math.PI * 0.95, -Math.PI * 0.05);
-      speed = 1000;
-    } else {
-      // 【ダイレクトドラッグ】画面のどこでも指をスワイプした方向へ飛ばす
-      let shootDx = dx;
-      let shootDy = dy;
-      if (shootDy > -10) {
-        shootDy = -Math.max(Math.abs(shootDy), 20); // 下向き操作も上向きに補正
+      if (this.comboTimer > 0) {
+        this.comboTimer -= delta;
+        if (this.comboTimer <= 0) {
+          this.combo = 0;
+          this.tweens.add({ targets: this.comboText, alpha: 0, duration: 200 });
+        }
       }
 
-      launchAngle = Math.atan2(shootDy, shootDx);
-      launchAngle = Phaser.Math.Clamp(launchAngle, -Math.PI * 0.95, -Math.PI * 0.05);
-      speed = Phaser.Math.Clamp(dragDistance * 9.0, 750, 1500);
-    }
-
-    this.launchBall(launchAngle, speed);
-  }
-
-  drawAimGuide() {
-    this.aimGraphics.clear();
-    if (!this.isAiming || this.isGameOver) return;
-
-    const dx = this.aimCurrentPos.x - this.aimStartPos.x;
-    const dy = this.aimCurrentPos.y - this.aimStartPos.y;
-    const dragDistance = Math.sqrt(dx * dx + dy * dy);
-
-    let launchAngle;
-    if (dragDistance < 12) {
-      // タップ待機時: キッカーからタッチ位置への角度
-      const tapDx = this.aimStartPos.x - this.kickerX;
-      let tapDy = this.aimStartPos.y - this.kickerY;
-      if (tapDy > -20) tapDy = -20;
-      launchAngle = Math.atan2(tapDy, tapDx);
-      launchAngle = Phaser.Math.Clamp(launchAngle, -Math.PI * 0.95, -Math.PI * 0.05);
-    } else {
-      // ドラッグ中: 指のスワイプ方向
-      let shootDx = dx;
-      let shootDy = dy;
-      if (shootDy > -10) {
-        shootDy = -Math.max(Math.abs(shootDy), 20);
-      }
-      launchAngle = Math.atan2(shootDy, shootDx);
-      launchAngle = Phaser.Math.Clamp(launchAngle, -Math.PI * 0.95, -Math.PI * 0.05);
-    }
-
-    const currentType = this.getCurrentBallType();
-    let guideColor = 0x38bdf8;
-    if (currentType === 'BOMB') guideColor = 0xef4444;
-    else if (currentType === 'FIRE') guideColor = 0xf97316;
-    else if (currentType === 'THUNDER') guideColor = 0xeab308;
-
-    // 1. 最下部キッカーから上空へ向けて弾道予測線（点線＋壁反射）を描画
-    let curX = this.kickerX;
-    let curY = this.kickerY - 15;
-    let dirX = Math.cos(launchAngle);
-    let dirY = Math.sin(launchAngle);
-    const stepSize = 18;
-    const totalSteps = dragDistance < 12 ? 20 : Math.min(Math.floor(dragDistance / 3.5) + 10, 30);
-
-    for (let i = 1; i <= totalSteps; i++) {
-      curX += dirX * stepSize;
-      curY += dirY * stepSize;
-
-      // 左右壁の反射シミュレーション
-      if (curX <= 18) {
-        curX = 18 + (18 - curX);
-        dirX *= -1;
-      } else if (curX >= this.scale.width - 18) {
-        curX = (this.scale.width - 18) - (curX - (this.scale.width - 18));
-        dirX *= -1;
+      this.enemySpawnTimer += delta;
+      if (this.enemySpawnTimer >= this.spawnInterval) {
+        this.enemySpawnTimer = 0;
+        this.spawnEnemyWave();
       }
 
-      if (curY <= 15) break; // 上端到達
+      this.balls.getChildren().forEach(ball => {
+        if (!ball.active) return;
+        if (ball.body.velocity.length() < 300) {
+          ball.body.velocity.normalize().scale(550);
+        }
+        if (ball.y < 0 || ball.x < 0 || ball.x > this.scale.width || ball.y > this.scale.height + 40) {
+          this.createBallVanishEffect(ball.x, ball.y, ball.ballType);
+          ball.destroy();
+        }
+      });
 
-      const alpha = Math.max(0.25, 1 - (i / totalSteps) * 0.7);
-      const size = Math.max(2, 4.5 - (i / totalSteps) * 2.2);
+      this.enemies.getChildren().forEach(enemy => {
+        if (!enemy.active) return;
+        if (enemy.y >= this.goalY - 20) {
+          this.triggerGameOver();
+        }
+      });
 
-      this.aimGraphics.fillStyle(guideColor, alpha);
-      this.aimGraphics.fillCircle(curX, curY, size);
+      this.items.getChildren().forEach(item => {
+        if (item.y > this.scale.height) item.destroy();
+      });
     }
 
-    // 2. ドラッグ中の操作線（指を動かした位置に表示）
-    if (dragDistance >= 12) {
-      this.aimGraphics.lineStyle(2.5, guideColor, 0.6);
-      this.aimGraphics.strokeLineShape(new Phaser.Geom.Line(
-        this.aimStartPos.x, this.aimStartPos.y,
-        this.aimCurrentPos.x, this.aimCurrentPos.y
-      ));
-
-      // タッチ開始点と現在の指先サークル
-      this.aimGraphics.fillStyle(0xffffff, 0.4);
-      this.aimGraphics.fillCircle(this.aimStartPos.x, this.aimStartPos.y, 5);
-      this.aimGraphics.fillStyle(guideColor, 0.6);
-      this.aimGraphics.fillCircle(this.aimCurrentPos.x, this.aimCurrentPos.y, 8);
+    onPointerDown(pointer) {
+      if (this.isGameOver || pointer.y < 56) return;
+      this.isAiming = true;
+      this.aimStartPos.set(pointer.x, pointer.y);
+      this.aimCurrentPos.set(pointer.x, pointer.y);
     }
-  }
 
-  getCurrentBallType() {
-    if (this.powerUpStock.length > 0) {
-      return this.powerUpStock[0].type;
+    onPointerMove(pointer) {
+      if (!this.isAiming) return;
+      this.aimCurrentPos.set(pointer.x, pointer.y);
+      this.drawAimLine();
     }
-    return 'NORMAL';
-  }
 
-  consumeBallStock() {
-    if (this.powerUpStock.length > 0) {
-      this.powerUpStock[0].count--;
-      if (this.powerUpStock[0].count <= 0) {
-        this.powerUpStock.shift();
+    onPointerUp(pointer) {
+      if (!this.isAiming) return;
+      this.isAiming = false;
+      this.aimGraphics.clear();
+
+      let dragVec = this.aimStartPos.clone().subtract(this.aimCurrentPos);
+      let angle;
+
+      if (dragVec.length() > 20) {
+        angle = dragVec.angle();
+        if (angle > 0 && angle < Math.PI) {
+          angle = -angle;
+        }
+      } else {
+        const kickVec = new Phaser.Math.Vector2(pointer.x - this.kickerX, pointer.y - this.kickerY);
+        angle = kickVec.angle();
+        if (angle > -0.1 && angle < Math.PI + 0.1) {
+          angle = -Math.PI / 2;
+        }
       }
-      this.updateStockUI();
-    }
-  }
 
-  updateStockUI() {
-    if (this.powerUpStock.length > 0) {
-      const stock = this.powerUpStock[0];
-      let icon = '💣';
-      let color = 0xef4444;
-      if (stock.type === 'FIRE') { icon = '🔥'; color = 0xf97316; }
-      if (stock.type === 'THUNDER') { icon = '⚡'; color = 0xeab308; }
-
-      this.stockBadgeBg.clear();
-      this.stockBadgeBg.fillStyle(color, 0.9);
-      this.stockBadgeBg.fillRoundedRect(-40, -14, 80, 28, 14);
-      this.stockBadgeText.setText(`${icon} × ${stock.count}`);
-      this.stockBadge.setVisible(true);
-    } else {
-      this.stockBadge.setVisible(false);
-    }
-  }
-
-  launchBall(angle, speed, overrideType = null, startX = null, startY = null) {
-    const ballType = overrideType || this.getCurrentBallType();
-    if (!overrideType) {
-      this.consumeBallStock();
+      angle = Phaser.Math.Clamp(angle, -Math.PI + 0.25, -0.25);
+      this.shootBall(angle);
     }
 
-    const sx = startX !== null ? startX : this.kickerX;
-    const sy = startY !== null ? startY : this.kickerY - 15;
+    drawAimLine() {
+      this.aimGraphics.clear();
+      let dragVec = this.aimStartPos.clone().subtract(this.aimCurrentPos);
+      let angle;
 
-    let textureKey = 'ball_normal';
-    if (ballType === 'BOMB') textureKey = 'ball_bomb';
-    if (ballType === 'FIRE') textureKey = 'ball_fire';
-    if (ballType === 'THUNDER') textureKey = 'ball_thunder';
+      if (dragVec.length() > 20) {
+        angle = dragVec.angle();
+        if (angle > 0 && angle < Math.PI) angle = -angle;
+      } else {
+        const kickVec = new Phaser.Math.Vector2(this.aimCurrentPos.x - this.kickerX, this.aimCurrentPos.y - this.kickerY);
+        angle = kickVec.angle();
+        if (angle > -0.1 && angle < Math.PI + 0.1) angle = -Math.PI / 2;
+      }
 
-    const ball = this.balls.create(sx, sy, textureKey);
-    ball.ballType = ballType;
-    ball.bouncesLeft = ballType === 'FIRE' ? 15 : 8;
-    ball.hitCooldowns = new Map(); // 同一敵への超短時間多重判定防止マップ
-    
-    // 重力完全無効化・十分な大きさの円形コリジョン・完全弾性反発
-    ball.body.allowGravity = false;
-    const r = ballType === 'FIRE' ? 22 : 18;
-    ball.body.setCircle(r, (ball.width - r * 2) / 2, (ball.height - r * 2) / 2);
-    ball.setCollideWorldBounds(true);
-    ball.setBounce(1.0, 1.0);
+      angle = Phaser.Math.Clamp(angle, -Math.PI + 0.25, -0.25);
 
-    const vx = Math.cos(angle) * speed;
-    const vy = Math.sin(angle) * speed;
-    ball.setVelocity(vx, vy);
+      const len = 140;
+      const targetX = this.kickerX + Math.cos(angle) * len;
+      const targetY = this.kickerY + Math.sin(angle) * len;
 
-    // 発射音
-    sounds.playKick(ballType);
+      this.aimGraphics.lineStyle(3, 0x38bdf8, 0.85);
+      this.aimGraphics.strokePoints([
+        new Phaser.Geom.Point(this.kickerX, this.kickerY),
+        new Phaser.Geom.Point(targetX, targetY)
+      ]);
+    }
 
-    // 発射アニメーション
-    this.tweens.add({
-      targets: this.kicker,
-      y: this.kickerY + 6,
-      duration: 60,
-      yoyo: true
-    });
+    shootBall(angle, typeOverride = null, spawnPos = null) {
+      let ballType = typeOverride || 'NORMAL';
+      if (!typeOverride && this.powerUpStock.length > 0) {
+        const item = this.powerUpStock[0];
+        ballType = item.type;
+        item.count--;
+        if (item.count <= 0) this.powerUpStock.shift();
+        this.updateStockUI();
+      }
 
-    // ボール毎の固有更新
-    ball.updateBall = (time, delta) => {
-      // 画面最下部を抜けたら消滅
-      if (ball.y > this.goalY + 40) {
-        this.createBallVanishEffect(ball.x, ball.y, ballType);
+      const x = spawnPos ? spawnPos.x : this.kickerX;
+      const y = spawnPos ? spawnPos.y : this.kickerY - 10;
+      const speed = 750;
+
+      let textureKey = 'ball_normal';
+      if (ballType === 'BOMB') textureKey = 'ball_bomb';
+      if (ballType === 'FIRE') textureKey = 'ball_fire';
+      if (ballType === 'THUNDER') textureKey = 'ball_thunder';
+
+      const ball = this.balls.create(x, y, textureKey);
+      ball.ballType = ballType;
+      ball.body.setCollideWorldBounds(true);
+      ball.body.setBounce(1, 1);
+      ball.body.setCircle(14, 4, 4);
+
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+      ball.body.setVelocity(vx, vy);
+
+      SoundSynth.playKick(ballType);
+
+      this.tweens.add({
+        targets: this.kicker,
+        scaleX: 1.35,
+        scaleY: 1.35,
+        duration: 80,
+        yoyo: true
+      });
+    }
+
+    handleBallEnemyOverlap(ball, enemy) {
+      if (!ball.active || !enemy.active) return;
+
+      this.combo++;
+      this.comboTimer = 2200;
+      this.showComboUI(this.combo);
+      SoundSynth.playHit(this.combo);
+
+      const damage = (ball.ballType === 'FIRE') ? 3 : (ball.ballType === 'BOMB') ? 5 : 1;
+      this.damageEnemy(enemy, damage, ball);
+
+      if (ball.ballType === 'BOMB') {
+        SoundSynth.playExplosion();
+        this.cameras.main.shake(200, 0.015);
+        this.createExplosionParticles(enemy.x, enemy.y, 25);
+        this.splashDamage(enemy.x, enemy.y, 110, 4);
+        this.createBallVanishEffect(ball.x, ball.y, 'BOMB');
         ball.destroy();
         return;
       }
 
-      // ワールド境界バウンドで寿命減少
-      if (ball.body.blocked.left || ball.body.blocked.right || ball.body.blocked.up) {
-        ball.bouncesLeft--;
-        this.createSparkEffect(ball.x, ball.y, 4, 'spark_blue');
-        if (ball.bouncesLeft <= 0) {
-          this.createBallVanishEffect(ball.x, ball.y, ballType);
-          ball.destroy();
+      if (ball.ballType === 'THUNDER' && !ball.hasSplit) {
+        ball.hasSplit = true;
+        SoundSynth.playThunder();
+        const curAngle = ball.body.velocity.angle();
+        this.shootBall(curAngle + 0.35, 'NORMAL', { x: ball.x, y: ball.y });
+        this.shootBall(curAngle - 0.35, 'NORMAL', { x: ball.x, y: ball.y });
+      }
+
+      if (ball.ballType !== 'FIRE') {
+        const dx = ball.x - enemy.x;
+        const dy = ball.y - enemy.y;
+        const normal = new Phaser.Math.Vector2(dx, dy).normalize();
+        const currentVel = ball.body.velocity.clone();
+        const dot = currentVel.dot(normal);
+        const reflectVel = currentVel.subtract(normal.scale(2 * dot));
+        ball.body.setVelocity(reflectVel.x, reflectVel.y);
+      }
+    }
+
+    damageEnemy(enemy, amount, sourceBall) {
+      enemy.hp -= amount;
+      this.showDamageText(enemy.x, enemy.y, `-${amount}`, amount > 1 ? '#f97316' : '#ffffff');
+
+      this.tweens.add({
+        targets: enemy,
+        tint: 0xff0000,
+        duration: 80,
+        yoyo: true,
+        onComplete: () => enemy.clearTint()
+      });
+
+      if (enemy.hp <= 0) {
+        this.killEnemy(enemy);
+      }
+    }
+
+    splashDamage(cx, cy, radius, damage) {
+      this.enemies.getChildren().forEach(enemy => {
+        if (!enemy.active) return;
+        const dist = Phaser.Math.Distance.Between(cx, cy, enemy.x, enemy.y);
+        if (dist <= radius) {
+          this.damageEnemy(enemy, damage, null);
         }
-      }
-    };
-  }
-
-  // ====================
-  // 敵AI & 出現システム
-  // ====================
-  spawnEnemyWave() {
-    const { width } = this.scale;
-    // ボス出現条件（ウェーブ5の倍数でまだボスがいない場合）
-    if (this.wave % 5 === 0 && !this.enemies.getChildren().some(e => e.active && e.enemyType === 'BOSS')) {
-      this.spawnBoss();
-      return;
+      });
     }
 
-    // 敵数（最大5スロットで安全に出現）
-    const count = Phaser.Math.Between(2, Math.min(2 + Math.floor(this.wave * 0.7), 5));
-    const availableSlots = [width * 0.15, width * 0.32, width * 0.5, width * 0.68, width * 0.85];
-    Phaser.Utils.Array.Shuffle(availableSlots);
+    killEnemy(enemy) {
+      SoundSynth.playKill();
+      const points = (enemy.enemyType === 'boss') ? 500 : (enemy.enemyType === 'giant') ? 150 : 50;
+      this.score += points + (this.combo * 5);
+      this.scoreText.setText(`SCORE: ${this.score}`);
 
-    for (let i = 0; i < count; i++) {
-      // スロットから安全に取得（配列外参照によるNaN発生を完全防止）
-      const x = availableSlots[i] !== undefined ? availableSlots[i] : Phaser.Math.Between(width * 0.15, width * 0.85);
-      const rand = Math.random();
-      let type = 'ZAKO';
+      this.createExplosionParticles(enemy.x, enemy.y, 16);
 
-      if (this.wave >= 2 && rand < 0.3) type = 'SPEED';
-      else if (this.wave >= 3 && rand < 0.6) type = 'UFO';
-      else if (this.wave >= 4 && rand < 0.85) type = 'GIANT';
-
-      this.spawnSingleEnemy(x, -30 - (i * 22), type);
-    }
-  }
-
-  spawnSingleEnemy(x, y, type) {
-    let texture = 'enemy_zako';
-    let hp = 2 + Math.floor(this.wave * 0.8);
-    let speed = 25 + Math.min(this.wave * 2, 40);
-
-    if (type === 'SPEED') {
-      texture = 'enemy_speed';
-      hp = 1 + Math.floor(this.wave * 0.4);
-      speed = 65 + Math.min(this.wave * 4, 70);
-    } else if (type === 'UFO') {
-      texture = 'enemy_ufo';
-      hp = 4 + Math.floor(this.wave * 1.2);
-      speed = 22 + this.wave;
-    } else if (type === 'GIANT') {
-      texture = 'enemy_giant';
-      hp = 12 + Math.floor(this.wave * 2.5);
-      speed = 14 + this.wave * 0.5;
-    }
-
-    const enemy = this.enemies.create(x, y, texture);
-    enemy.id = 'enemy_' + Phaser.Math.RND.uuid(); // 一意のID
-    enemy.enemyType = type;
-    enemy.maxHp = hp;
-    enemy.hp = hp;
-    enemy.baseSpeed = speed;
-    enemy.startX = x;
-    enemy.timeOffset = Math.random() * 1000;
-    enemy.shield = type === 'UFO' ? 1 : 0;
-
-    // 物理ボディ設定 (円形当たり判定をしっかり確保)
-    const radius = type === 'GIANT' ? 26 : 20;
-    enemy.body.setCircle(radius, (enemy.width - radius * 2) / 2, (enemy.height - radius * 2) / 2);
-
-    // HPバー用グラフィックス
-    enemy.hpBar = this.add.graphics();
-
-    // 固有AIロジック
-    enemy.updateAI = (time, delta) => {
-      if (!enemy.active || !enemy.body) return;
-      const dt = delta / 1000;
-      if (type === 'SPEED') {
-        enemy.y += enemy.baseSpeed * dt;
-        enemy.x = enemy.startX + Math.sin((time + enemy.timeOffset) * 0.006) * 45;
-      } else if (type === 'UFO') {
-        enemy.y += enemy.baseSpeed * dt;
-        enemy.x = enemy.startX + Math.cos((time + enemy.timeOffset) * 0.003) * 60;
-      } else {
-        enemy.y += enemy.baseSpeed * dt;
-      }
-
-      // HPバー描画
-      if (enemy.hpBar && enemy.active && enemy.hp < enemy.maxHp) {
-        enemy.hpBar.clear();
-        const barW = enemy.width * 0.9;
-        const barH = 5;
-        const barX = enemy.x - barW / 2;
-        const barY = enemy.y - enemy.height * 0.5 - 8;
-
-        enemy.hpBar.fillStyle(0x000000, 0.6);
-        enemy.hpBar.fillRect(barX, barY, barW, barH);
-
-        const healthRatio = Phaser.Math.Clamp(enemy.hp / enemy.maxHp, 0, 1);
-        enemy.hpBar.fillStyle(healthRatio > 0.4 ? 0x22c55e : 0xef4444, 1);
-        enemy.hpBar.fillRect(barX, barY, barW * healthRatio, barH);
-      } else if (enemy.hpBar) {
-        enemy.hpBar.clear();
-      }
-    };
-  }
-
-  spawnBoss() {
-    sounds.playWarning();
-    const { width } = this.scale;
-    const hp = 40 + this.wave * 8;
-    const boss = this.enemies.create(width / 2, -60, 'enemy_boss');
-    boss.id = 'boss_' + Phaser.Math.RND.uuid();
-    boss.enemyType = 'BOSS';
-    boss.maxHp = hp;
-    boss.hp = hp;
-    boss.baseSpeed = 10;
-    boss.startX = width / 2;
-    boss.timeOffset = 0;
-    boss.shield = 0;
-    boss.summonTimer = 0;
-
-    const radius = 36;
-    boss.body.setCircle(radius, (boss.width - radius * 2) / 2, (boss.height - radius * 2) / 2);
-
-    boss.hpBar = this.add.graphics();
-
-    // ボス警告バナー
-    const warningText = this.add.text(width / 2, 220, '⚠️ BOSS APPROACHING ⚠️', {
-      fontSize: '24px',
-      fontWeight: '900',
-      color: '#ef4444',
-      stroke: '#ffffff',
-      strokeThickness: 3
-    }).setOrigin(0.5);
-
-    this.tweens.add({
-      targets: warningText,
-      alpha: 0,
-      scale: 1.3,
-      duration: 1800,
-      onComplete: () => warningText.destroy()
-    });
-
-    boss.updateAI = (time, delta) => {
-      if (!boss.active || !boss.body) return;
-      const dt = delta / 1000;
-      if (boss.y < 130) {
-        boss.y += 40 * dt;
-      } else {
-        boss.y += boss.baseSpeed * dt;
-        boss.x = boss.startX + Math.sin(time * 0.002) * (width * 0.35);
-      }
-
-      // 取り巻き召喚
-      boss.summonTimer += delta;
-      if (boss.summonTimer > 4500 && boss.y > 50) {
-        boss.summonTimer = 0;
-        this.spawnSingleEnemy(boss.x + Phaser.Math.Between(-60, 60), boss.y + 40, 'ZAKO');
-      }
-
-      // HPバー描画 (大)
-      if (boss.hpBar && boss.active) {
-        boss.hpBar.clear();
-        const barW = width * 0.75;
-        const barH = 10;
-        const barX = width / 2 - barW / 2;
-        const barY = 64;
-
-        boss.hpBar.fillStyle(0x0f172a, 0.8);
-        boss.hpBar.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
-
-        const healthRatio = Phaser.Math.Clamp(boss.hp / boss.maxHp, 0, 1);
-        boss.hpBar.fillStyle(0xf43f5e, 1);
-        boss.hpBar.fillRect(barX, barY, barW * healthRatio, barH);
-      }
-    };
-  }
-
-  nextWave() {
-    if (this.isGameOver) return;
-    this.wave++;
-    this.waveText.setText(`WAVE ${this.wave}`);
-    this.spawnInterval = Math.max(1200, 2200 - this.wave * 120);
-
-    // ウェーブアップ演出
-    const waveNotice = this.add.text(this.scale.width / 2, 260, `WAVE ${this.wave}!`, {
-      fontSize: '36px',
-      fontWeight: '900',
-      color: '#facc15',
-      stroke: '#000000',
-      strokeThickness: 6
-    }).setOrigin(0.5).setAlpha(0);
-
-    this.tweens.add({
-      targets: waveNotice,
-      alpha: 1,
-      scale: 1.2,
-      duration: 400,
-      yoyo: true,
-      hold: 600,
-      onComplete: () => waveNotice.destroy()
-    });
-  }
-
-  // ====================
-  // 敵との衝突判定 (Overlap & 法線反射)
-  // ====================
-  handleBallEnemyOverlap(ball, enemy) {
-    if (!ball.active || !enemy.active || !enemy.body || enemy.hp <= 0) return;
-
-    // 敵IDによる短時間多重ヒット防止（25msクールダウン）
-    const now = this.time.now;
-    if (ball.hitCooldowns && enemy.id && ball.hitCooldowns.has(enemy.id)) {
-      const lastHit = ball.hitCooldowns.get(enemy.id);
-      if (now - lastHit < 25) return;
-    }
-    if (!ball.hitCooldowns) ball.hitCooldowns = new Map();
-    if (enemy.id) ball.hitCooldowns.set(enemy.id, now);
-
-    // UFOシールド判定
-    if (enemy.shield > 0) {
-      enemy.shield--;
-      sounds.playHit(1);
-      this.createSparkEffect(enemy.x, enemy.y, 8, 'spark_blue');
-      this.showDamageText(enemy.x, enemy.y, 'GUARD!', '#38bdf8');
-      this.reflectBallFromEnemy(ball, enemy);
-      return;
-    }
-
-    // コンボ加算
-    this.combo++;
-    this.comboTimer = 2200;
-    this.showComboUI();
-
-    // ボールタイプごとの挙動
-    if (ball.ballType === 'BOMB') {
-      this.triggerBombExplosion(ball.x, ball.y);
-      ball.destroy();
-      return;
-    }
-
-    if (ball.ballType === 'THUNDER') {
-      this.triggerThunderSplit(ball);
-      this.damageEnemy(enemy, 2, ball);
-      ball.destroy();
-      return;
-    }
-
-    if (ball.ballType === 'FIRE') {
-      // ファイヤーボール: 反射せず敵を貫通直進
-      this.damageEnemy(enemy, 3, ball);
-      sounds.playKick('FIRE');
-      this.cameras.main.shake(80, 0.008);
-      return;
-    }
-
-    // NORMALボール: ダメージ ＋ 敵中心からの法線ベクトルでカキーンと全方位反射！
-    this.damageEnemy(enemy, 1, ball);
-    sounds.playHit(this.combo);
-    this.reflectBallFromEnemy(ball, enemy);
-  }
-
-  // 敵中心からの法線ベクトルによる完全反射
-  reflectBallFromEnemy(ball, enemy) {
-    ball.bouncesLeft--;
-    if (ball.bouncesLeft <= 0) {
-      this.createBallVanishEffect(ball.x, ball.y, ball.ballType);
-      ball.destroy();
-      return;
-    }
-
-    // 敵の中心からボールの中心へ向かう反発角
-    const reflectAngle = Phaser.Math.Angle.Between(enemy.x, enemy.y, ball.x, ball.y);
-    const currentSpeed = Math.max(800, ball.body.velocity.length());
-    ball.setVelocity(Math.cos(reflectAngle) * currentSpeed, Math.sin(reflectAngle) * currentSpeed);
-    this.createSparkEffect(ball.x, ball.y, 4, 'spark_blue');
-  }
-
-  // ヒットストップ効果（大ヒット時の手応え演出）
-  triggerHitStop(duration = 40) {
-    this.physics.world.pause();
-    this.time.delayedCall(duration, () => {
-      if (!this.isGameOver) {
-        this.physics.world.resume();
-      }
-    });
-  }
-
-  damageEnemy(enemy, dmg, sourceBall) {
-    enemy.hp -= dmg;
-    this.showDamageText(enemy.x, enemy.y, `-${dmg}`, '#ffffff');
-
-    // ヒットフラッシュ
-    enemy.setTint(0xffffff);
-    this.time.delayedCall(70, () => {
-      if (enemy.active) enemy.clearTint();
-    });
-
-    // スコア加算
-    const pts = dmg * 10 * Math.max(1, Math.floor(this.combo * 0.5));
-    this.addScore(pts);
-
-    // 撃破判定
-    if (enemy.hp <= 0) {
-      this.destroyEnemy(enemy);
-    }
-  }
-
-  destroyEnemy(enemy) {
-    sounds.playKill();
-    this.createExplosionParticles(enemy.x, enemy.y, enemy.enemyType === 'BOSS' ? 30 : 12);
-
-    if (enemy.enemyType === 'BOSS') {
-      this.triggerHitStop(120);
-      this.cameras.main.shake(350, 0.025);
-      this.addScore(1000);
-    } else if (enemy.enemyType === 'GIANT') {
-      this.triggerHitStop(40);
-      this.cameras.main.shake(120, 0.012);
-      this.addScore(150);
-      if (Math.random() < 0.6) this.spawnPowerUpItem(enemy.x, enemy.y);
-    } else {
-      this.addScore(50);
-      // ドロップ判定 (28% の確率)
       if (Math.random() < 0.28) {
-        this.spawnPowerUpItem(enemy.x, enemy.y);
+        this.spawnItem(enemy.x, enemy.y);
       }
+
+      enemy.destroy();
     }
 
-    // HPバーの安全破棄と物理ボディの無効化（ゴースト化防止）
-    if (enemy.hpBar) {
-      enemy.hpBar.destroy();
-      enemy.hpBar = null;
-    }
-    enemy.disableBody(true, true);
-    enemy.destroy();
-  }
+    spawnItem(x, y) {
+      const types = ['BOMB', 'FIRE', 'THUNDER'];
+      const type = Phaser.Utils.Array.GetRandom(types);
+      let key = 'item_bomb';
+      if (type === 'FIRE') key = 'item_fire';
+      if (type === 'THUNDER') key = 'item_thunder';
 
-  // ボム爆発処理 (範囲ダメージ)
-  triggerBombExplosion(x, y) {
-    sounds.playExplosion();
-    this.triggerHitStop(60);
-    this.cameras.main.shake(260, 0.03);
-    this.createExplosionParticles(x, y, 28);
-
-    const radius = 130;
-    this.enemies.getChildren().forEach(enemy => {
-      const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
-      if (dist <= radius) {
-        const bombDmg = 5;
-        this.damageEnemy(enemy, bombDmg, null);
-      }
-    });
-  }
-
-  // サンダー分裂処理 (3方向に放電拡散)
-  triggerThunderSplit(ball) {
-    sounds.playThunder();
-    this.createSparkEffect(ball.x, ball.y, 15, 'spark_yellow');
-    const baseAngle = ball.body.velocity.angle();
-
-    [-0.5, 0, 0.5].forEach(offsetAngle => {
-      this.launchBall(baseAngle + offsetAngle, 900, 'NORMAL', ball.x, ball.y);
-    });
-  }
-
-  // ====================
-  // アイテム・パワーアップ
-  // ====================
-  spawnPowerUpItem(x, y) {
-    const types = ['BOMB', 'FIRE', 'THUNDER'];
-    const selected = Phaser.Utils.Array.GetRandom(types);
-
-    let tex = 'item_bomb';
-    if (selected === 'FIRE') tex = 'item_fire';
-    if (selected === 'THUNDER') tex = 'item_thunder';
-
-    const item = this.items.create(x, y, tex);
-    item.itemType = selected;
-
-    this.tweens.add({
-      targets: item,
-      scaleX: 1.2,
-      scaleY: 1.2,
-      duration: 400,
-      yoyo: true,
-      repeat: -1
-    });
-  }
-
-  handleBallItemOverlap(ball, item) {
-    if (!item.active) return;
-    sounds.playPowerUp();
-    this.createSparkEffect(item.x, item.y, 16, 'spark_yellow');
-
-    const type = item.itemType;
-    let label = '💣 BOMB +3!';
-    if (type === 'FIRE') label = '🔥 FIRE +3!';
-    if (type === 'THUNDER') label = '⚡ THUNDER +3!';
-
-    this.showDamageText(item.x, item.y, label, '#facc15');
-
-    // ストックに追加
-    const existing = this.powerUpStock.find(s => s.type === type);
-    if (existing) {
-      existing.count += 3;
-    } else {
-      this.powerUpStock.push({ type, count: 3 });
-    }
-    this.updateStockUI();
-
-    item.destroy();
-  }
-
-  // ====================
-  // スコア・コンボ・演出
-  // ====================
-  addScore(pts) {
-    this.score += pts;
-    this.scoreText.setText(`SCORE: ${this.score}`);
-    if (this.score > this.highScore) {
-      this.highScore = this.score;
-      this.highScoreText.setText(`HI: ${this.highScore}`);
-      localStorage.setItem('choujin_soccer_highscore', this.highScore);
-    }
-  }
-
-  showComboUI() {
-    if (this.combo >= 2) {
-      this.comboText.setText(`${this.combo} COMBO!`);
-      this.comboText.setAlpha(1).setScale(1.2);
-      this.tweens.add({
-        targets: this.comboText,
-        scaleX: 1.0,
-        scaleY: 1.0,
-        duration: 150
-      });
-    }
-  }
-
-  showDamageText(x, y, text, color = '#ffffff') {
-    const t = this.add.text(x, y, text, {
-      fontSize: '16px',
-      fontWeight: '900',
-      color: color,
-      stroke: '#000000',
-      strokeThickness: 3
-    }).setOrigin(0.5);
-
-    this.tweens.add({
-      targets: t,
-      y: y - 30,
-      alpha: 0,
-      scale: 1.2,
-      duration: 600,
-      onComplete: () => t.destroy()
-    });
-  }
-
-  createSparkEffect(x, y, count, texture) {
-    for (let i = 0; i < count; i++) {
-      const spark = this.add.sprite(x, y, texture);
-      const angle = Math.random() * Math.PI * 2;
-      const speed = Phaser.Math.Between(40, 160);
-      const vx = Math.cos(angle) * speed;
-      const vy = Math.sin(angle) * speed;
+      const item = this.items.create(x, y, key);
+      item.itemType = type;
+      item.body.setVelocityY(90);
+      item.body.setCircle(14, 2, 2);
 
       this.tweens.add({
-        targets: spark,
-        x: x + vx * 0.4,
-        y: y + vy * 0.4,
-        alpha: 0,
-        scale: 0.2,
-        duration: Phaser.Math.Between(250, 450),
-        onComplete: () => spark.destroy()
-      });
-    }
-  }
-
-  createExplosionParticles(x, y, count) {
-    const textures = ['spark_red', 'spark_orange', 'spark_yellow', 'spark_white'];
-    for (let i = 0; i < count; i++) {
-      const tex = Phaser.Utils.Array.GetRandom(textures);
-      const p = this.add.sprite(x, y, tex);
-      const angle = Math.random() * Math.PI * 2;
-      const dist = Phaser.Math.Between(30, 120);
-
-      this.tweens.add({
-        targets: p,
-        x: x + Math.cos(angle) * dist,
-        y: y + Math.sin(angle) * dist,
-        alpha: 0,
-        scale: Phaser.Math.FloatBetween(0.1, 0.4),
-        duration: Phaser.Math.Between(350, 650),
-        ease: 'Cubic.easeOut',
-        onComplete: () => p.destroy()
-      });
-    }
-  }
-
-  createBallVanishEffect(x, y, type) {
-    let tex = 'spark_blue';
-    if (type === 'BOMB') tex = 'spark_red';
-    if (type === 'FIRE') tex = 'spark_orange';
-    if (type === 'THUNDER') tex = 'spark_yellow';
-    this.createSparkEffect(x, y, 6, tex);
-  }
-
-  // ====================
-  // ゲームオーバー
-  // ====================
-  triggerGameOver() {
-    if (this.isGameOver) return;
-    this.isGameOver = true;
-    sounds.playGameOver();
-
-    this.cameras.main.shake(500, 0.035);
-    this.cameras.main.fade(800, 15, 23, 42, false, (cam, progress) => {
-      if (progress === 1) {
-        this.scene.start('GameOverScene', {
-          score: this.score,
-          highScore: this.highScore,
-          wave: this.wave
-        });
-      }
-    });
-  }
-}
-
-// ==========================================
-// 6. GameOverScene (結果画面 & Xシェア)
-// ==========================================
-class GameOverScene extends Phaser.Scene {
-  constructor() {
-    super({ key: 'GameOverScene' });
-  }
-
-  init(data) {
-    this.finalScore = data.score || 0;
-    this.highScore = data.highScore || 0;
-    this.wave = data.wave || 1;
-    this.isNewRecord = this.finalScore >= this.highScore && this.finalScore > 0;
-  }
-
-  create() {
-    const { width, height } = this.scale;
-
-    // ゲームオーバータイトル
-    this.add.text(width / 2, height * 0.18, 'GAME OVER', {
-      fontSize: '44px',
-      fontWeight: '900',
-      color: '#ef4444',
-      stroke: '#000000',
-      strokeThickness: 6,
-      shadow: { color: '#ef4444', fill: true, blur: 25 }
-    }).setOrigin(0.5);
-
-    // リザルトパネル
-    const panel = this.add.graphics();
-    panel.fillStyle(0x0f172a, 0.9);
-    panel.lineStyle(2, 0x38bdf8, 0.8);
-    panel.fillRoundedRect(width * 0.1, height * 0.28, width * 0.8, 220, 16);
-    panel.strokeRoundedRect(width * 0.1, height * 0.28, width * 0.8, 220, 16);
-
-    if (this.isNewRecord) {
-      const newRecBadge = this.add.text(width / 2, height * 0.28 + 26, '🎉 NEW RECORD! 🎉', {
-        fontSize: '18px',
-        fontWeight: '900',
-        color: '#facc15'
-      }).setOrigin(0.5);
-
-      this.tweens.add({
-        targets: newRecBadge,
-        scaleX: 1.15,
-        scaleY: 1.15,
-        duration: 500,
+        targets: item,
+        scaleX: 1.2,
+        scaleY: 1.2,
+        duration: 400,
         yoyo: true,
         repeat: -1
       });
     }
 
-    this.add.text(width / 2, height * 0.38, 'SCORE', {
-      fontSize: '16px',
-      fontWeight: '700',
-      color: '#94a3b8'
-    }).setOrigin(0.5);
+    handleBallItemOverlap(ball, item) {
+      if (!item.active) return;
+      SoundSynth.playPowerUp();
 
-    this.add.text(width / 2, height * 0.44, `${this.finalScore}`, {
-      fontSize: '42px',
-      fontWeight: '900',
-      color: '#38bdf8'
-    }).setOrigin(0.5);
+      const existing = this.powerUpStock.find(p => p.type === item.itemType);
+      if (existing) {
+        existing.count += 3;
+      } else {
+        this.powerUpStock.push({ type: item.itemType, count: 3 });
+      }
 
-    this.add.text(width / 2, height * 0.50, `REACHED WAVE ${this.wave}  |  BEST: ${this.highScore}`, {
-      fontSize: '14px',
-      fontWeight: '700',
-      color: '#cbd5e1'
-    }).setOrigin(0.5);
-
-    // RETRYボタン
-    const retryBtn = this.add.container(width / 2, height * 0.62);
-    const retryBg = this.add.graphics();
-    retryBg.fillStyle(0x0284c7, 1);
-    retryBg.lineStyle(2, 0x38bdf8, 1);
-    retryBg.fillRoundedRect(-110, -26, 220, 52, 26);
-    retryBg.strokeRoundedRect(-110, -26, 220, 52, 26);
-
-    const retryText = this.add.text(0, 0, '🔄 RETRY', {
-      fontSize: '20px',
-      fontWeight: '900',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-
-    retryBtn.add([retryBg, retryText]);
-    retryBtn.setSize(220, 52);
-    retryBtn.setInteractive({ useHandCursor: true });
-
-    retryBtn.on('pointerdown', () => {
-      sounds.init();
-      sounds.playKick('NORMAL');
-      this.scene.start('MainScene');
-    });
-
-    // X (Twitter) シェアボタン
-    const shareBtn = this.add.container(width / 2, height * 0.72);
-    const shareBg = this.add.graphics();
-    shareBg.fillStyle(0x000000, 1);
-    shareBg.lineStyle(2, 0xffffff, 0.8);
-    shareBg.fillRoundedRect(-110, -24, 220, 48, 24);
-    shareBg.strokeRoundedRect(-110, -24, 220, 48, 24);
-
-    const shareText = this.add.text(0, 0, '𝕏 でスコアをシェア', {
-      fontSize: '15px',
-      fontWeight: '800',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-
-    shareBtn.add([shareBg, shareText]);
-    shareBtn.setSize(220, 48);
-    shareBtn.setInteractive({ useHandCursor: true });
-
-    shareBtn.on('pointerdown', () => {
-      const text = `『超人サッカー』でスコア【${this.finalScore}】(WAVE ${this.wave}) を達成！\n待ち時間ゼロで連射しまくるのが超気持ちいい！⚽⚡\n#超人サッカー #Phaser3 #ブラウザゲーム`;
-      const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-      window.open(url, '_blank');
-    });
-
-    // タイトルへ戻る
-    const titleBtn = this.add.text(width / 2, height * 0.82, 'タイトルへ戻る', {
-      fontSize: '14px',
-      fontWeight: '700',
-      color: '#94a3b8',
-      underline: true
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-    titleBtn.on('pointerdown', () => {
-      this.scene.start('TitleScene');
-    });
-  }
-}
-
-// ==========================================
-// 7. Phaser ゲーム設定・起動
-// ==========================================
-const config = {
-  type: Phaser.AUTO,
-  parent: 'game-container',
-  width: 480,
-  height: 854,
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  },
-  physics: {
-    default: 'arcade',
-    arcade: {
-      gravity: { y: 0 }, // 無重力・反射物理
-      fps: 120, // 120FPSサブステップで高速ボールのトンネリング（すり抜け）を完全根絶！
-      fixedStep: true,
-      debug: false
+      this.showDamageText(item.x, item.y, `GET ${item.itemType}!`, '#38bdf8');
+      this.createSparkEffect(item.x, item.y, 12, 'spark_yellow');
+      this.updateStockUI();
+      item.destroy();
     }
-  },
-  scene: [BootScene, TitleScene, MainScene, GameOverScene],
-  backgroundColor: '#000000'
-};
 
-window.addEventListener('DOMContentLoaded', () => {
-  new Phaser.Game(config);
-});
+    updateStockUI() {
+      if (this.powerUpStock.length === 0) {
+        this.stockText.setText('');
+      } else {
+        const list = this.powerUpStock.map(p => {
+          const icon = (p.type === 'BOMB') ? '💣' : (p.type === 'FIRE') ? '🔥' : '⚡';
+          return `${icon} x${p.count}`;
+        }).join('  ');
+        this.stockText.setText(`NEXT: ${list}`);
+      }
+    }
+
+    showComboUI(combo) {
+      if (combo < 2) return;
+      this.comboText.setText(`${combo} COMBO! 🔥`);
+      this.comboText.setAlpha(1).setScale(1.3);
+      this.tweens.killTweensOf(this.comboText);
+      this.tweens.add({
+        targets: this.comboText,
+        scaleX: 1.0,
+        scaleY: 1.0,
+        duration: 180,
+        ease: 'Back.easeOut'
+      });
+    }
+
+    nextWave() {
+      if (this.isGameOver) return;
+      this.wave++;
+      const t = I18N[currentLang];
+      this.waveText.setText(`${t.wave} ${this.wave}`);
+      this.spawnInterval = Math.max(1200, 2200 - (this.wave * 120));
+
+      if (this.wave % 5 === 0) {
+        SoundSynth.playWarning();
+        this.cameras.main.shake(300, 0.02);
+        this.spawnBoss();
+      }
+    }
+
+    spawnEnemyWave() {
+      const { width } = this.scale;
+      const count = Phaser.Math.Between(2, Math.min(5, 2 + Math.floor(this.wave / 2)));
+      for (let i = 0; i < count; i++) {
+        const x = Phaser.Math.Between(40, width - 40);
+        const y = Phaser.Math.Between(60, 160);
+        this.spawnEnemy(x, y);
+      }
+    }
+
+    spawnEnemy(x, y) {
+      const r = Math.random();
+      let type = 'zako';
+      let hp = 1;
+      let speed = 40 + this.wave * 4;
+
+      if (r < 0.25) {
+        type = 'speed';
+        hp = 1;
+        speed = 85 + this.wave * 6;
+      } else if (r < 0.45) {
+        type = 'ufo';
+        hp = 2;
+        speed = 50 + this.wave * 4;
+      } else if (r < 0.60 && this.wave >= 2) {
+        type = 'giant';
+        hp = 5;
+        speed = 30 + this.wave * 3;
+      }
+
+      const enemy = this.enemies.create(x, y, `enemy_${type}`);
+      enemy.enemyType = type;
+      enemy.hp = hp;
+      enemy.maxHp = hp;
+      enemy.body.setVelocityY(speed);
+      enemy.body.setCircle(18, 4, 4);
+    }
+
+    spawnBoss() {
+      const { width } = this.scale;
+      const enemy = this.enemies.create(width / 2, 90, 'enemy_boss');
+      enemy.enemyType = 'boss';
+      enemy.hp = 25 + this.wave * 5;
+      enemy.maxHp = enemy.hp;
+      enemy.body.setVelocityY(22);
+      enemy.body.setCircle(32, 6, 6);
+    }
+
+    showDamageText(x, y, text, color = '#ffffff') {
+      const t = this.add.text(x, y, text, {
+        fontSize: '16px',
+        fontWeight: '900',
+        color: color,
+        stroke: '#000000',
+        strokeThickness: 3
+      }).setOrigin(0.5);
+
+      this.tweens.add({
+        targets: t,
+        y: y - 30,
+        alpha: 0,
+        scale: 1.2,
+        duration: 600,
+        onComplete: () => t.destroy()
+      });
+    }
+
+    createSparkEffect(x, y, count, texture) {
+      for (let i = 0; i < count; i++) {
+        const spark = this.add.sprite(x, y, texture);
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Phaser.Math.Between(40, 160);
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+
+        this.tweens.add({
+          targets: spark,
+          x: x + vx * 0.4,
+          y: y + vy * 0.4,
+          alpha: 0,
+          scale: 0.2,
+          duration: Phaser.Math.Between(250, 450),
+          onComplete: () => spark.destroy()
+        });
+      }
+    }
+
+    createExplosionParticles(x, y, count) {
+      const textures = ['spark_red', 'spark_orange', 'spark_yellow', 'spark_white'];
+      for (let i = 0; i < count; i++) {
+        const tex = Phaser.Utils.Array.GetRandom(textures);
+        const p = this.add.sprite(x, y, tex);
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Phaser.Math.Between(30, 120);
+
+        this.tweens.add({
+          targets: p,
+          x: x + Math.cos(angle) * dist,
+          y: y + Math.sin(angle) * dist,
+          alpha: 0,
+          scale: Phaser.Math.FloatBetween(0.1, 0.4),
+          duration: Phaser.Math.Between(350, 650),
+          ease: 'Cubic.easeOut',
+          onComplete: () => p.destroy()
+        });
+      }
+    }
+
+    createBallVanishEffect(x, y, type) {
+      let tex = 'spark_blue';
+      if (type === 'BOMB') tex = 'spark_red';
+      if (type === 'FIRE') tex = 'spark_orange';
+      if (type === 'THUNDER') tex = 'spark_yellow';
+      this.createSparkEffect(x, y, 6, tex);
+    }
+
+    triggerGameOver() {
+      if (this.isGameOver) return;
+      this.isGameOver = true;
+      SoundSynth.playGameOver();
+
+      this.cameras.main.shake(500, 0.035);
+      this.time.delayedCall(700, () => {
+        this.scene.start('SceneResult', {
+          score: this.score,
+          wave: this.wave
+        });
+      });
+    }
+  }
+
+  // ==========================================
+  // 6. 共通リザルトシーン (SceneResult)
+  // ==========================================
+  class SceneResult extends Phaser.Scene {
+    constructor() { super('SceneResult'); }
+    init(data) {
+      this.finalScore = data.score || 0;
+      this.wave = data.wave || 1;
+    }
+
+    create() {
+      const { width, height } = this.scale;
+      const t = I18N[currentLang];
+
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'game_over', { 'score': this.finalScore, 'wave': this.wave });
+      }
+
+      let best = parseInt(localStorage.getItem('choujin_soccer_highscore') || localStorage.getItem('space_kicker_highscore') || '0', 10);
+      const isNew = this.finalScore > best;
+      if (isNew) {
+        best = this.finalScore;
+        localStorage.setItem('choujin_soccer_highscore', best);
+        localStorage.setItem('space_kicker_highscore', best);
+      }
+
+      this.add.rectangle(0, 0, width, height, 0x070913, 0.96).setOrigin(0);
+
+      // GAMEOVER ロゴ
+      this.add.text(width / 2, 140, t.gameOver, {
+        fontSize: '34px',
+        fontFamily: 'system-ui, sans-serif',
+        fontStyle: 'bold',
+        fill: '#ef4444',
+        stroke: '#000',
+        strokeThickness: 5
+      }).setOrigin(0.5);
+
+      // スコア表示
+      this.add.text(width / 2, 215, `${t.score}: ${this.finalScore}`, {
+        fontSize: '38px',
+        fontFamily: 'system-ui, sans-serif',
+        fontStyle: 'bold',
+        fill: '#38bdf8'
+      }).setOrigin(0.5);
+
+      this.add.text(width / 2, 260, `${t.wave} ${this.wave}`, {
+        fontSize: '18px',
+        fontStyle: 'bold',
+        fill: '#facc15'
+      }).setOrigin(0.5);
+
+      this.add.text(width / 2, 295, `🏆 ${t.bestScore}: ${best} ${isNew ? '🔥 NEW!' : ''}`, {
+        fontSize: '17px',
+        fontStyle: 'bold',
+        fill: '#f472b6'
+      }).setOrigin(0.5);
+
+      // 1. もう一回 (RETRY)
+      const retryBtn = this.add.rectangle(width / 2, 375, width - 80, 52, 0x0284c7).setInteractive({ useHandCursor: true });
+      this.add.text(width / 2, 375, t.retryBtn, { fontSize: '18px', fontStyle: 'bold', fill: '#fff' }).setOrigin(0.5);
+      retryBtn.on('pointerdown', () => {
+        SoundSynth.playTap();
+        this.scene.start('SceneGame');
+      });
+
+      // 2. Xにポスト (SHARE)
+      const shareBtn = this.add.rectangle(width / 2, 445, width - 80, 52, 0x0369a1).setInteractive({ useHandCursor: true });
+      this.add.text(width / 2, 445, t.shareBtn, { fontSize: '18px', fontStyle: 'bold', fill: '#fff' }).setOrigin(0.5);
+      shareBtn.on('pointerdown', () => {
+        SoundSynth.playTap();
+        const text = encodeURIComponent(t.shareText.replace('{score}', this.finalScore).replace('{wave}', this.wave));
+        const url = encodeURIComponent(window.location.href);
+        window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+      });
+
+      // 3. タイトルへ (TITLE)
+      const titleBtn = this.add.rectangle(width / 2 - 95, 525, 160, 46, 0x334155).setInteractive({ useHandCursor: true });
+      this.add.text(width / 2 - 95, 525, t.titleBtn, { fontSize: '14px', fontStyle: 'bold', fill: '#cbd5e1' }).setOrigin(0.5);
+      titleBtn.on('pointerdown', () => {
+        SoundSynth.playTap();
+        this.scene.start('SceneTitle');
+      });
+
+      // 4. ポータルへ (MORE GAMES)
+      const portalBtn = this.add.rectangle(width / 2 + 95, 525, 160, 46, 0x475569).setInteractive({ useHandCursor: true });
+      this.add.text(width / 2 + 95, 525, t.portalBtn, { fontSize: '14px', fontStyle: 'bold', fill: '#cbd5e1' }).setOrigin(0.5);
+      portalBtn.on('pointerdown', () => {
+        SoundSynth.playTap();
+        window.open('../index.html', '_self');
+      });
+    }
+  }
+
+  // ==========================================
+  // 7. Phaser ゲーム設定・起動
+  // ==========================================
+  const config = {
+    type: Phaser.AUTO,
+    parent: 'game-container',
+    width: 480,
+    height: 800,
+    backgroundColor: '#020617',
+    scale: {
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH
+    },
+    physics: {
+      default: 'arcade',
+      arcade: {
+        gravity: { y: 0 },
+        fps: 120,
+        fixedStep: true,
+        debug: false
+      }
+    },
+    scene: [SceneTitle, SceneGame, SceneResult]
+  };
+
+  window.addEventListener('DOMContentLoaded', () => {
+    new Phaser.Game(config);
+  });
+
+})();
 </script>
 </body>
 </html>
