@@ -414,6 +414,9 @@
       -webkit-backdrop-filter: blur(20px);
       transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.5);
+      /* 画面外レンダリングの最適化 */
+      content-visibility: auto;
+      contain-intrinsic-size: 0 400px;
     }
 
     .game-card::before {
@@ -552,6 +555,7 @@
       color: #fff;
       background: rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       padding: 5px 12px;
       border-radius: 50px;
       border: 1px solid rgba(255, 255, 255, 0.15);
@@ -682,6 +686,7 @@
       padding: 32px 28px;
       margin-bottom: 60px;
       backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
 
     .features-grid {
@@ -797,51 +802,111 @@
     }
 
     /* ==========================================================================
-       RESPONSIVE DESIGN
+       RESPONSIVE DESIGN & MOBILE GPU OPTIMIZATIONS
        ========================================================================== */
     @media (max-width: 768px) {
+      /* 重いGPUブラーとアニメーションをモバイル時は停止・軽量化 */
+      .ambient-glow {
+        display: none !important;
+      }
+
+      .cyber-grid {
+        mask-image: none !important;
+        -webkit-mask-image: none !important;
+      }
+
       .app-container {
         padding: 14px 12px 36px;
       }
+
       header {
         padding: 12px 14px;
         margin-bottom: 24px;
         flex-direction: column;
         align-items: stretch;
         gap: 12px;
+        background: rgba(15, 17, 30, 0.95) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
       }
+
       .brand-logo {
         justify-content: center;
       }
+
       .brand-text h1 {
         font-size: 1.05rem;
       }
+
       .nav-controls {
         justify-content: center;
         gap: 8px;
       }
+
+      .pill-group {
+        background: rgba(8, 10, 20, 0.9);
+      }
+
       .pill-segment {
         padding: 5px 9px;
         font-size: 0.75rem;
       }
+
       .hero {
         padding: 10px 0 32px;
       }
+
       .games-grid {
         gap: 20px;
       }
+
+      /* ゲームカードのモバイル最適化（backdrop-filter無効化、不透明ベタ塗り、マスク無効化） */
       .game-card {
         flex: 1 1 100%;
         max-width: 100%;
+        background: rgba(18, 20, 36, 0.96) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
       }
+
+      .game-card::before {
+        display: none !important;
+      }
+
+      .game-card:hover {
+        transform: none;
+      }
+
       .card-visual {
         height: 145px;
       }
+
+      .visual-bg-glow {
+        opacity: 0.2;
+        filter: blur(30px);
+      }
+
       .game-main-emoji {
         font-size: 4rem;
+        animation: none;
       }
+
+      .control-badge {
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+
       .card-body {
         padding: 16px 18px 18px;
+      }
+
+      .features-section {
+        background: rgba(15, 17, 30, 0.95) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
       }
     }
   </style>
@@ -957,7 +1022,7 @@
           <span class="card-index-tag">#02</span>
           <span class="control-badge">↔️ <span data-i18n="g2-control">DRAG / SLIDE</span></span>
           <div class="visual-bg-glow"></div>
-          <span class="game-main-emoji">😺</span>
+          <span class="game-main-emoji">🐱</span>
         </div>
         <div class="card-body">
           <div class="card-title-group">
@@ -965,12 +1030,12 @@
             <span class="card-subtitle">CATCH ME IF YOU NYAN</span>
           </div>
           <p class="card-description" data-i18n="g2-desc">
-            落ちてくるアイテムをバスケットでキャッチ！爆弾を回避しつつコンボを繋いでフィーバー突入を目指せ！
+            落ちてくる魚やスイーツをカゴでキャッチ！爆弾を華麗に避けながらフィーバータイム突入でスコア爆増を狙え。
           </p>
           <div class="card-tags">
             <span class="tag">#Catch</span>
+            <span class="tag">#Fever</span>
             <span class="tag">#CuteCat</span>
-            <span class="tag">#Combo</span>
           </div>
           <a href="./02-catch-game/index.html" class="btn-play">
             <span data-i18n="btn-play">PLAY NOW</span> 🎮
@@ -982,7 +1047,7 @@
       <article class="game-card card-kicker" data-url="./03-space-kicker/index.html">
         <div class="card-visual">
           <span class="card-index-tag">#03</span>
-          <span class="control-badge">🎯 <span data-i18n="g3-control">AIM & SHOT</span></span>
+          <span class="control-badge">🎯 <span data-i18n="g3-control">SWIPE & SHOOT</span></span>
           <div class="visual-bg-glow"></div>
           <span class="game-main-emoji">⚽</span>
         </div>
@@ -992,12 +1057,12 @@
             <span class="card-subtitle">SPACE KICKER</span>
           </div>
           <p class="card-description" data-i18n="g3-desc">
-            狙いを定めて超絶シュートを放て！立ちはだかるディフェンスとキーパーの鉄壁ガードを粉砕する痛快サッカーアクション。
+            魔球と超連射でゴールキーパーを粉砕！狙い撃ちのスワイプと壁反射トリックショットを駆使するスペースサッカー。
           </p>
           <div class="card-tags">
             <span class="tag">#Soccer</span>
-            <span class="tag">#SuperPower</span>
             <span class="tag">#Action</span>
+            <span class="tag">#SpecialShot</span>
           </div>
           <a href="./03-space-kicker/index.html" class="btn-play">
             <span data-i18n="btn-play">PLAY NOW</span> 🎮
@@ -1009,22 +1074,22 @@
       <article class="game-card card-slash" data-url="./04-emoji-slash/index.html">
         <div class="card-visual">
           <span class="card-index-tag">#04</span>
-          <span class="control-badge">⚡ <span data-i18n="g4-control">SWIPE SLASH</span></span>
+          <span class="control-badge">⚔️ <span data-i18n="g4-control">SWIPE SLASH</span></span>
           <div class="visual-bg-glow"></div>
           <span class="game-main-emoji">🐶</span>
         </div>
         <div class="card-body">
           <div class="card-title-group">
             <h3 class="card-title" data-i18n="g4-title">闘犬乱舞</h3>
-            <span class="card-subtitle">EMOJI SLASH</span>
+            <span class="card-subtitle">BLADE OF DOG</span>
           </div>
           <p class="card-description" data-i18n="g4-desc">
-            画面を高速スワイプして飛来するターゲットを一刀両断！連続スラッシュとクリティカルで最高スコアを刻め！
+            画面を鋭くスワイプして飛来する食材絵文字を一刀両断！爆弾を避けてコンボを繋ぎ、至高の刀豪を目指せ。
           </p>
           <div class="card-tags">
             <span class="tag">#Slash</span>
-            <span class="tag">#SwordAction</span>
-            <span class="tag">#Speed</span>
+            <span class="tag">#Combo</span>
+            <span class="tag">#Reflexes</span>
           </div>
           <a href="./04-emoji-slash/index.html" class="btn-play">
             <span data-i18n="btn-play">PLAY NOW</span> 🎮
@@ -1036,9 +1101,9 @@
       <article class="game-card card-jump" data-url="./05-jump-ninja/index.html">
         <div class="card-visual">
           <span class="card-index-tag">#05</span>
-          <span class="control-badge">⏱️ <span data-i18n="g5-control">HOLD & CHARGE</span></span>
+          <span class="control-badge">🌸 <span data-i18n="g5-control">HOLD & RELEASE</span></span>
           <div class="visual-bg-glow"></div>
-          <span class="game-main-emoji">🌸</span>
+          <span class="game-main-emoji">🥷</span>
         </div>
         <div class="card-body">
           <div class="card-title-group">
@@ -1046,12 +1111,12 @@
             <span class="card-subtitle">PYONPYON NINJA</span>
           </div>
           <p class="card-description" data-i18n="g5-desc">
-            長押しでジャンプパワーをチャージ！絶妙な目測と度胸で次なる足場へ飛び移る2.5Dジャンプアクション。
+            長押しでジャンプパワーを溜め、足場から足場へ飛び移れ！中心に着地してPERFECTコンボを重ねる度胸試し。
           </p>
           <div class="card-tags">
-            <span class="tag">#ChargeJump</span>
-            <span class="tag">#DistanceSense</span>
-            <span class="tag">#Precision</span>
+            <span class="tag">#Jump</span>
+            <span class="tag">#Ninja</span>
+            <span class="tag">#Timing</span>
           </div>
           <a href="./05-jump-ninja/index.html" class="btn-play">
             <span data-i18n="btn-play">PLAY NOW</span> 🎮
@@ -1061,189 +1126,189 @@
 
     </div>
 
-    <!-- Features Section -->
+    <!-- Features / Highlights Section -->
     <section class="features-section">
       <div class="features-grid">
         <div class="feature-item">
           <div class="feature-icon">⚡</div>
-          <h4 class="feature-title" data-i18n="feat1-t">ZERO INSTALL</h4>
-          <p class="feature-desc" data-i18n="feat1-d">ブラウザを開くだけで即起動。スマホ・PC両対応。</p>
+          <h4 class="feature-title" data-i18n="feat1-title">INSTANT PLAY</h4>
+          <p class="feature-desc" data-i18n="feat1-desc">アプリダウンロード不要。ワンタップで0秒起動。</p>
         </div>
         <div class="feature-item">
-          <div class="feature-icon">👆</div>
-          <h4 class="feature-title" data-i18n="feat2-t">ONE-TOUCH PLAY</h4>
-          <p class="feature-desc" data-i18n="feat2-d">直感操作で誰でも1秒でルール理解＆熱中。</p>
+          <div class="feature-icon">📱</div>
+          <h4 class="feature-title" data-i18n="feat2-title">MOBILE OPTIMIZED</h4>
+          <p class="feature-desc" data-i18n="feat2-desc">スマホ縦画面に完全最適化された極上のタッチレスポンス。</p>
         </div>
         <div class="feature-item">
-          <div class="feature-icon">🏆</div>
-          <h4 class="feature-title" data-i18n="feat3-t">HIGH SCORE</h4>
-          <p class="feature-desc" data-i18n="feat3-d">自己ベスト更新を目指すやり込み系ゲーム満載。</p>
+          <div class="feature-icon">🔊</div>
+          <h4 class="feature-title" data-i18n="feat3-title">SYNTH SOUNDS</h4>
+          <p class="feature-desc" data-i18n="feat3-desc">Web Audio APIによるプロシージャル効果音を内蔵。</p>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🌍</div>
+          <h4 class="feature-title" data-i18n="feat4-title">BILINGUAL</h4>
+          <p class="feature-desc" data-i18n="feat4-desc">全タイトル日本語・英語にシームレス対応。</p>
         </div>
       </div>
     </section>
 
+    <!-- Footer -->
+    <footer>
+      <div class="footer-content">
+        <div class="creator-box">
+          <span class="creator-avatar">👨‍💻</span>
+          <span class="creator-name">Creator:</span>
+          <a href="https://x.com/sigege" target="_blank" rel="noopener noreferrer" class="creator-handle">
+            A・イシオ (@sigege)
+          </a>
+        </div>
+
+        <div class="footer-links">
+          <a href="https://x.com/sigege" target="_blank" rel="noopener noreferrer" class="footer-link">
+            <span>🐦</span> <span>X (Twitter)</span>
+          </a>
+          <a href="https://github.com/sigege-bit" target="_blank" rel="noopener noreferrer" class="footer-link">
+            <span>🐙</span> <span>GitHub</span>
+          </a>
+        </div>
+
+        <p class="footer-copyright">
+          &copy; 2026 SHIGEGE MINI-GAMES. All rights reserved. Powered by Phaser 3.
+        </p>
+      </div>
+    </footer>
+
   </div>
 
-  <!-- Footer -->
-  <footer>
-    <div class="footer-content">
-      <div class="creator-box">
-        <span class="creator-avatar">👾</span>
-        <span class="creator-name" data-i18n="creator-label">Created by A・イシオ</span>
-        <a href="https://github.com/sigege" target="_blank" rel="noopener noreferrer" class="creator-handle">@sigege</a>
-      </div>
-
-      <div class="footer-links">
-        <a href="https://github.com/sigege" target="_blank" rel="noopener noreferrer" class="footer-link">
-          <span>🐙</span> GitHub Profile
-        </a>
-        <a href="./01-stack-tower/index.html" class="footer-link">📦 01 Stack Tower</a>
-        <a href="./02-catch-game/index.html" class="footer-link">😺 02 Catch Me</a>
-        <a href="./03-space-kicker/index.html" class="footer-link">⚽ 03 Space Kicker</a>
-        <a href="./04-emoji-slash/index.html" class="footer-link">🐶 04 Emoji Slash</a>
-        <a href="./05-jump-ninja/index.html" class="footer-link">🌸 05 Pyonpyon Ninja</a>
-      </div>
-
-      <p class="footer-copyright">
-        &copy; 2026 SHIGEGE MINI-GAMES. All rights reserved. Powered by HTML5 &amp; Phaser.
-      </p>
-    </div>
-  </footer>
-
-  <!-- Interactive JavaScript & Audio Synthesizer -->
   <script>
-    (function () {
+    (function() {
       'use strict';
 
       /* ==========================================================================
-         TRANSLATION DATA (JA / EN)
+         I18N DICTIONARY
          ========================================================================== */
       const translations = {
         ja: {
-          "header-tag": "ハイパーカジュアルWebゲーム集",
-          "sfx-on-label": "ON",
-          "sfx-off-label": "OFF",
-          "hero-badge": "✨ 全5作品のカジュアルWebゲーム",
-          "hero-title-1": "サクッと遊べて、",
-          "hero-title-2": "ドハマりする爽快感。",
-          "hero-desc": "インストール不要・ブラウザで今すぐ遊べる爽快カジュアルゲームコレクション。極上の手触りと直感操作でハイスコアを叩き出せ！",
-          "btn-random": "🎲 ランダムで遊ぶ / PLAY RANDOM",
-          "sec-title": "🎮 ゲーム一覧",
-          "game-count": "全5作品 プレイ可能",
-          "btn-play": "PLAY NOW",
-          "creator-label": "Created by A・イシオ",
-          "feat1-t": "インストール不要",
-          "feat1-d": "ブラウザを開くだけで即起動。スマホ・PC両対応。",
-          "feat2-t": "ワンタッチ直感操作",
-          "feat2-d": "直感操作で誰でも1秒でルール理解＆熱中。",
-          "feat3-t": "ハイスコア挑戦",
-          "feat3-d": "自己ベスト更新を目指すやり込み系ゲーム満載。",
+          'header-tag': 'Hyper-Casual Web Games',
+          'sfx-on-label': 'ON',
+          'sfx-off-label': 'OFF',
+          'hero-badge': '✨ ブラウザで今すぐ遊べる全5作品',
+          'hero-title-1': 'スキマ時間に、',
+          'hero-title-2': '最高の爽快感を。',
+          'hero-desc': 'インストール不要・ブラウザで今すぐ遊べる爽快カジュアルゲームコレクション。極上の手触りと直感操作でハイスコアを叩き出せ！',
+          'btn-random': '🎲 RANDOM PLAY / ランダムで遊ぶ',
+          'sec-title': '🎮 ALL GAMES',
+          'game-count': '全 5 タイトル公開中',
+          'btn-play': '今すぐ遊ぶ',
           
-          /* Game 1 */
-          "g1-title": "積む積む",
-          "g1-control": "タップタイミング",
-          "g1-desc": "タイミングよく画面をタップしてブロックを積み重ねろ！ズレた部分はカットされるスリリングなタワービルディング。",
+          'g1-title': '積む積む',
+          'g1-desc': 'タイミングよく画面をタップしてブロックを積み重ねろ！ズレた部分はカットされるスリリングなタワービルディング。',
+          'g1-control': 'タップ操作',
 
-          /* Game 2 */
-          "g2-title": "キャッチミーイフユーニャン",
-          "g2-control": "左右ドラッグ",
-          "g2-desc": "落ちてくるアイテムをバスケットでキャッチ！爆弾を回避しつつコンボを繋いでフィーバー突入を目指せ！",
+          'g2-title': 'キャッチミーイフユーニャン',
+          'g2-desc': '落ちてくる魚やスイーツをカゴでキャッチ！爆弾を華麗に避けながらフィーバータイム突入でスコア爆増を狙え。',
+          'g2-control': 'ドラッグ操作',
 
-          /* Game 3 */
-          "g3-title": "超人サッカー",
-          "g3-control": "狙い撃ち＆連射",
-          "g3-desc": "狙いを定めて超絶シュートを放て！立ちはだかるディフェンスとキーパーの鉄壁ガードを粉砕する痛快サッカーアクション。",
+          'g3-title': '超人サッカー',
+          'g3-desc': '魔球と超連射でゴールキーパーを粉砕！狙い撃ちのスワイプと壁反射トリックショットを駆使するスペースサッカー。',
+          'g3-control': 'スワイプ＆連打',
 
-          /* Game 4 */
-          "g4-title": "闘犬乱舞",
-          "g4-control": "スワイプ一筆両断",
-          "g4-desc": "画面を高速スワイプして飛来するターゲットを一刀両断！連続スラッシュとクリティカルで最高スコアを刻め！",
+          'g4-title': '闘犬乱舞',
+          'g4-desc': '画面を鋭くスワイプして飛来する食材絵文字を一刀両断！爆弾を避けてコンボを繋ぎ、至高の刀豪を目指せ。',
+          'g4-control': 'スワイプ両断',
 
-          /* Game 5 */
-          "g5-title": "花のピョンピョン丸",
-          "g5-control": "長押しチャージ",
-          "g5-desc": "長押しでジャンプパワーをチャージ！絶妙な目測と度胸で次なる足場へ飛び移る2.5Dジャンプアクション。"
+          'g5-title': '花のピョンピョン丸',
+          'g5-desc': '長押しでジャンプパワーを溜め、足場から足場へ飛び移れ！中心に着地してPERFECTコンボを重ねる度胸試し。',
+          'g5-control': '長押しチャージ',
+
+          'feat1-title': '即時プレイ',
+          'feat1-desc': 'アプリダウンロード不要。ワンタップで0秒起動。',
+          'feat2-title': 'スマホ最適化',
+          'feat2-desc': 'スマホ縦画面に完全最適化された極上のタッチレスポンス。',
+          'feat3-title': 'プロシージャル音源',
+          'feat3-desc': 'Web Audio APIによるシンセ効果音をゼロ遅延で生成。',
+          'feat4-title': '日英バイリンガル',
+          'feat4-desc': '全タイトル日本語・英語にシームレス対応。'
         },
         en: {
-          "header-tag": "Hyper-Casual Web Games",
-          "sfx-on-label": "ON",
-          "sfx-off-label": "OFF",
-          "hero-badge": "✨ 5 PLAYABLE CASUAL WEB GAMES",
-          "hero-title-1": "Play Fast,",
-          "hero-title-2": "Feel The Rush.",
-          "hero-desc": "Zero installation needed. Jump into instant browser action with hyper-responsive controls and beat your personal bests!",
-          "btn-random": "🎲 RANDOM PLAY",
-          "sec-title": "🎮 ALL GAMES",
-          "game-count": "5 TITLES AVAILABLE",
-          "btn-play": "PLAY NOW",
-          "creator-label": "Created by A. Ishio",
-          "feat1-t": "ZERO INSTALL",
-          "feat1-d": "Instant play in any modern browser on Mobile & Desktop.",
-          "feat2-t": "ONE-TOUCH PLAY",
-          "feat2-d": "Instant intuitive controls, easy to learn, hard to master.",
-          "feat3-t": "HIGH SCORE CHASE",
-          "feat3-d": "Addictive arcade loops designed to push your reflexes.",
+          'header-tag': 'Hyper-Casual Web Games',
+          'sfx-on-label': 'ON',
+          'sfx-off-label': 'OFF',
+          'hero-badge': '✨ 5 Playable Hyper-Casual Games',
+          'hero-title-1': 'Play Fast,',
+          'hero-title-2': 'Feel The Rush.',
+          'hero-desc': 'Zero install, instant browser hyper-casual games. Dive in with intuitive controls and beat your high scores!',
+          'btn-random': '🎲 RANDOM PLAY',
+          'sec-title': '🎮 ALL GAMES',
+          'game-count': '5 TITLES AVAILABLE',
+          'btn-play': 'PLAY NOW',
 
-          /* Game 1 */
-          "g1-title": "Stack Tower",
-          "g1-control": "TAP TIMING",
-          "g1-desc": "Tap precisely at the right moment to stack moving blocks and construct an infinite skyscraper without falling!",
+          'g1-title': 'Stack Tower',
+          'g1-desc': 'Tap with perfect timing to stack ascending blocks. Overhanging parts get sliced away in this thrilling tower builder.',
+          'g1-control': 'TAP TIMING',
 
-          /* Game 2 */
-          "g2-title": "Catch Me If You Nyan",
-          "g2-control": "DRAG / SLIDE",
-          "g2-desc": "Catch delicious items with your basket, dodge hazardous bombs, and trigger fever mode for maximum combo score!",
+          'g2-title': 'Catch Me If You Nyan',
+          'g2-desc': 'Catch falling treats into the basket while dodging bombs! Trigger Fever Mode for massive score multiplier rushes.',
+          'g2-control': 'DRAG / SLIDE',
 
-          /* Game 3 */
-          "g3-title": "Space Kicker",
-          "g3-control": "AIM & SHOT",
-          "g3-desc": "Unleash devastating curve shots past agile defenders and smash through galactic goalkeepers!",
+          'g3-title': 'Space Kicker',
+          'g3-desc': 'Shatter alien goalkeepers with curved shots and rapid-fire kicks! Master cosmic wall ricochets to dominate the arena.',
+          'g3-control': 'SWIPE & SHOOT',
 
-          /* Game 4 */
-          "g4-title": "Emoji Slash",
-          "g4-control": "SWIPE SLASH",
-          "g4-desc": "Swipe like lightning to slice through incoming flying targets with high-speed critical strike combos!",
+          'g4-title': 'Blade of Dog',
+          'g4-desc': 'Slice flying emoji ingredients with lightning-fast swipes! Dodge deadly bombs and chain slices for legendary master rank.',
+          'g4-control': 'SWIPE SLASH',
 
-          /* Game 5 */
-          "g5-title": "Pyonpyon Ninja",
-          "g5-control": "HOLD & CHARGE",
-          "g5-desc": "Hold to charge jumping energy and leap across platforms with precision distance judgment and bravery!"
+          'g5-title': 'Pyonpyon Ninja',
+          'g5-desc': 'Hold to charge jump power and leap across isometric rooftops! Nail dead-center landings for perfect combos.',
+          'g5-control': 'HOLD & RELEASE',
+
+          'feat1-title': 'INSTANT PLAY',
+          'feat1-desc': 'No download required. Play in 0 seconds directly in your browser.',
+          'feat2-title': 'MOBILE OPTIMIZED',
+          'feat2-desc': 'Fully tailored for mobile portrait screens with ultra-responsive controls.',
+          'feat3-title': 'SYNTH SOUNDS',
+          'feat3-desc': 'Built-in procedural sound synthesis via Web Audio API.',
+          'feat4-title': 'BILINGUAL',
+          'feat4-desc': 'Seamless switching between Japanese and English across all games.'
         }
       };
 
       /* ==========================================================================
-         SYNTHESIZED SOUND EFFECTS (Web Audio API - Zero Asset)
+         WEB AUDIO PROCEDURAL SOUND SYSTEM
          ========================================================================== */
       let audioCtx = null;
       let soundEnabled = (localStorage.getItem('shigege_portal_sfx') !== 'false');
 
-      function getAudioContext() {
+      function initAudio() {
         if (!audioCtx) {
-          const AudioContext = window.AudioContext || window.webkitAudioContext;
-          if (AudioContext) audioCtx = new AudioContext();
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+          }
         }
-        if (audioCtx && audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
-        return audioCtx;
       }
 
       function playSound(type) {
         if (!soundEnabled) return;
-        try {
-          const ctx = getAudioContext();
-          if (!ctx) return;
+        initAudio();
+        if (!audioCtx) return;
 
-          const now = ctx.currentTime;
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        try {
+          const now = audioCtx.currentTime;
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
           osc.connect(gain);
-          gain.connect(ctx.destination);
+          gain.connect(audioCtx.destination);
 
           if (type === 'hover') {
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(420, now);
-            osc.frequency.exponentialRampToValueAtTime(780, now + 0.06);
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.exponentialRampToValueAtTime(900, now + 0.05);
             gain.gain.setValueAtTime(0.04, now);
             gain.gain.linearRampToValueAtTime(0, now + 0.06);
             osc.start(now);
@@ -1391,81 +1456,92 @@
       });
 
       /* ==========================================================================
-         CYBER PARTICLES CANVAS ANIMATION
+         CYBER PARTICLES CANVAS ANIMATION (軽量＆モバイル最適化)
          ========================================================================== */
       const canvas = document.getElementById('particle-canvas');
-      const ctx = canvas.getContext('2d');
-      let width = (canvas.width = window.innerWidth);
-      let height = (canvas.height = window.innerHeight);
+      const isMobile = window.innerWidth <= 768;
 
-      window.addEventListener('resize', () => {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
-      });
+      if (!isMobile && canvas) {
+        const ctx = canvas.getContext('2d');
+        let width = (canvas.width = window.innerWidth);
+        let height = (canvas.height = window.innerHeight);
 
-      const particleColors = ['#00f2fe', '#4facfe', '#ff007f', '#9d4edd', '#ff9f1c'];
-      const particles = [];
-      const PARTICLE_COUNT = Math.min(36, Math.floor(window.innerWidth / 32));
+        window.addEventListener('resize', () => {
+          if (window.innerWidth <= 768) {
+            canvas.style.display = 'none';
+          } else {
+            canvas.style.display = 'block';
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+          }
+        }, { passive: true });
 
-      for (let i = 0; i < PARTICLE_COUNT; i++) {
-        particles.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          radius: Math.random() * 2 + 1,
-          color: particleColors[Math.floor(Math.random() * particleColors.length)],
-          vx: (Math.random() - 0.5) * 0.4,
-          vy: (Math.random() - 0.5) * 0.4 - 0.2,
-          alpha: Math.random() * 0.6 + 0.2,
-          pulseSpeed: Math.random() * 0.02 + 0.01
-        });
-      }
+        const particleColors = ['#00f2fe', '#4facfe', '#ff007f', '#9d4edd', '#ff9f1c'];
+        const particles = [];
+        const PARTICLE_COUNT = Math.min(24, Math.floor(window.innerWidth / 40));
 
-      function renderParticles() {
-        ctx.clearRect(0, 0, width, height);
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            radius: Math.random() * 1.8 + 1,
+            color: particleColors[Math.floor(Math.random() * particleColors.length)],
+            vx: (Math.random() - 0.5) * 0.35,
+            vy: (Math.random() - 0.5) * 0.35 - 0.15,
+            alpha: Math.random() * 0.5 + 0.2
+          });
+        }
 
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
-          p.x += p.vx;
-          p.y += p.vy;
+        let animationFrameId;
+        function renderParticles() {
+          if (window.innerWidth <= 768) return;
 
-          if (p.x < 0) p.x = width;
-          if (p.x > width) p.x = 0;
-          if (p.y < 0) p.y = height;
-          if (p.y > height) p.y = 0;
+          ctx.clearRect(0, 0, width, height);
 
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-          ctx.fillStyle = p.color;
-          ctx.globalAlpha = p.alpha;
-          ctx.shadowBlur = 12;
-          ctx.shadowColor = p.color;
-          ctx.fill();
+          for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
 
-          // Connect close particles
-          for (let j = i + 1; j < particles.length; j++) {
-            const p2 = particles[j];
-            const dx = p.x - p2.x;
-            const dy = p.y - p2.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (p.x < 0) p.x = width;
+            if (p.x > width) p.x = 0;
+            if (p.y < 0) p.y = height;
+            if (p.y > height) p.y = 0;
 
-            if (dist < 110) {
-              ctx.beginPath();
-              ctx.moveTo(p.x, p.y);
-              ctx.lineTo(p2.x, p2.y);
-              ctx.strokeStyle = p.color;
-              ctx.globalAlpha = (1 - dist / 110) * 0.15;
-              ctx.lineWidth = 0.8;
-              ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.alpha;
+            ctx.fill();
+
+            // Connect close particles (計算コストを抑えた線描画)
+            for (let j = i + 1; j < particles.length; j++) {
+              const p2 = particles[j];
+              const dx = p.x - p2.x;
+              const dy = p.y - p2.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+
+              if (dist < 90) {
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.strokeStyle = p.color;
+                ctx.globalAlpha = (1 - dist / 90) * 0.12;
+                ctx.lineWidth = 0.6;
+                ctx.stroke();
+              }
             }
           }
+          ctx.globalAlpha = 1;
+
+          animationFrameId = requestAnimationFrame(renderParticles);
         }
-        ctx.shadowBlur = 0;
-        ctx.globalAlpha = 1;
 
-        requestAnimationFrame(renderParticles);
+        renderParticles();
+      } else if (canvas) {
+        // モバイル時はCanvas描画を完全停止して非表示
+        canvas.style.display = 'none';
       }
-
-      renderParticles();
 
     })();
   </script>
