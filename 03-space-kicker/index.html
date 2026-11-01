@@ -27,15 +27,18 @@
       -webkit-user-select: none;
       -webkit-touch-callout: none;
     }
-    body {
-      background: #06070d;
-      color: #fff;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", sans-serif;
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
+      background-color: #06070d;
       overflow: hidden;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", sans-serif;
       touch-action: none;
     }
     #game-container {
@@ -49,11 +52,47 @@
       background: #020617;
     }
     canvas {
-      display: block;
-      margin: auto;
+      display: block !important;
+      margin: auto !important;
       touch-action: none;
     }
-  </style>
+  
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #06070d;
+      overflow: hidden;
+    }
+    
+  
+
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      background-color: #06070d !important;
+      overflow: hidden !important;
+    }
+    canvas {
+      display: block !important;
+      margin: auto !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      width: auto !important;
+      height: auto !important;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.8) !important;
+    }
+  
+</style>
 </head>
 <body>
 
@@ -83,11 +122,15 @@
       bestScore: "BEST SCORE",
       wave: "WAVE",
       retryBtn: "🔄 もう一回",
-      shareBtn: "🐦 Xにポスト",
+      shareBtn: "𝕏 でポスト",
       titleBtn: "🏠 タイトルへ",
-      portalBtn: "🌐 他のゲームで遊ぶ",
+      portalBtn: "🌐 MENUに戻る",
       defenseLine: "🚨 DEFENSE LINE 🚨",
-      shareText: "【超人サッカー】でスコア {score} 点 (WAVE {wave}) を達成！ #ShigegeGames"
+      rankS: "Sランク：銀河のストライカー",
+      rankA: "Aランク：超人ファンタジスタ",
+      rankB: "Bランク：エースキッカー",
+      rankC: "Cランク：ルーキー選手",
+      shareText: "【超人サッカー】でスコア {score} 点（ランク: 【{rank}】）を達成！ #ShigegeGames"
     },
     en: {
       title: "SPACE KICKER",
@@ -102,11 +145,15 @@
       bestScore: "BEST SCORE",
       wave: "WAVE",
       retryBtn: "🔄 RETRY",
-      shareBtn: "🐦 SHARE ON X",
+      shareBtn: "𝕏 POST TO X",
       titleBtn: "🏠 TITLE",
-      portalBtn: "🌐 MORE GAMES",
+      portalBtn: "🌐 MENU",
       defenseLine: "🚨 DEFENSE LINE 🚨",
-      shareText: "I scored {score} pts (WAVE {wave}) in 【Space Kicker】! #ShigegeGames"
+      rankS: "S-Rank: Galactic Striker",
+      rankA: "A-Rank: Super Fantasista",
+      rankB: "B-Rank: Ace Kicker",
+      rankC: "C-Rank: Rookie Kicker",
+      shareText: "I scored {score} pts (Rank: 【{rank}】) in 【Space Kicker】! #ShigegeGames"
     }
   };
 
@@ -539,11 +586,24 @@
     }
 
     createHeaderUI(w) {
+      // MENUに戻るピル
+      const menuBg = this.add.rectangle(80, 42, 130, 32, 0x1e293b, 0.9)
+        .setStrokeStyle(1, 0x38bdf8, 0.5)
+        .setInteractive({ useHandCursor: true });
+      this.add.text(80, 42, currentLang === 'ja' ? '🏠 MENUに戻る' : '🏠 MENU', {
+        fontSize: '12px', fontStyle: 'bold', fill: '#cbd5e1'
+      }).setOrigin(0.5);
+
+      menuBg.on('pointerdown', () => {
+        SoundSynth.playTap();
+        window.open('../index.html', '_self');
+      });
+
       // サウンド切替ピル
-      const sfxBg = this.add.rectangle(80, 42, 110, 32, soundEnabled ? 0x0369a1 : 0x1e293b, 0.9)
+      const sfxBg = this.add.rectangle(240, 42, 110, 32, soundEnabled ? 0x0369a1 : 0x1e293b, 0.9)
         .setStrokeStyle(1, soundEnabled ? 0x38bdf8 : 0x475569)
         .setInteractive({ useHandCursor: true });
-      this.add.text(80, 42, soundEnabled ? '🔊 SFX ON' : '🔇 OFF', {
+      this.add.text(240, 42, soundEnabled ? '🔊 SFX ON' : '🔇 OFF', {
         fontSize: '12px', fontStyle: 'bold', fill: '#fff'
       }).setOrigin(0.5);
 
@@ -555,7 +615,7 @@
       });
 
       // 言語切替ピル
-      const langBg = this.add.rectangle(w - 80, 42, 110, 32, 0x1e293b, 0.9)
+      const langBg = this.add.rectangle(w - 80, 42, 130, 32, 0x1e293b, 0.9)
         .setStrokeStyle(1, 0x38bdf8, 0.5)
         .setInteractive({ useHandCursor: true });
       this.add.text(w - 80, 42, currentLang === 'ja' ? '🇯🇵 日本語' : '🇺🇸 English', {
@@ -1188,6 +1248,8 @@
 
     create() {
       const { width, height } = this.scale;
+      const cx = width / 2;
+      const cy = height / 2;
       const t = I18N[currentLang];
 
       if (typeof window.gtag === 'function') {
@@ -1202,67 +1264,116 @@
         localStorage.setItem('space_kicker_highscore', best);
       }
 
-      this.add.rectangle(0, 0, width, height, 0x070913, 0.96).setOrigin(0);
+      // ランク判定
+      let rank = t.rankC;
+      if (this.finalScore >= 3000) rank = t.rankS;
+      else if (this.finalScore >= 1500) rank = t.rankA;
+      else if (this.finalScore >= 500) rank = t.rankB;
 
-      // GAMEOVER ロゴ
-      this.add.text(width / 2, 140, t.gameOver, {
+      // 背景オーバーレイ & 中央カードパネル
+      this.add.rectangle(cx, cy, width, height, 0x06070d, 0.94).setScrollFactor(0);
+      this.add.rectangle(cx, cy, 420, 520, 0x0f1424, 0.96)
+        .setStrokeStyle(2, 0xff9f1c, 0.65)
+        .setScrollFactor(0);
+
+      // 1. 終了タイトル
+      this.add.text(cx, cy - 195, t.gameOver, {
         fontSize: '34px',
         fontFamily: 'system-ui, sans-serif',
         fontStyle: 'bold',
         fill: '#ef4444',
-        stroke: '#000',
+        stroke: '#000000',
         strokeThickness: 5
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setScrollFactor(0);
 
-      // スコア表示
-      this.add.text(width / 2, 215, `${t.score}: ${this.finalScore}`, {
-        fontSize: '38px',
+      // 2. 今回スコア: 「SCORE: {スコア}」
+      this.add.text(cx, cy - 125, `SCORE: ${this.finalScore}`, {
+        fontSize: '36px',
         fontFamily: 'system-ui, sans-serif',
         fontStyle: 'bold',
         fill: '#38bdf8'
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setScrollFactor(0);
 
-      this.add.text(width / 2, 260, `${t.wave} ${this.wave}`, {
-        fontSize: '18px',
-        fontStyle: 'bold',
-        fill: '#facc15'
-      }).setOrigin(0.5);
-
-      this.add.text(width / 2, 295, `🏆 ${t.bestScore}: ${best} ${isNew ? '🔥 NEW!' : ''}`, {
+      // 3. ランク／称号: 「ランク: 【 {ランク・称号} 】」
+      this.add.text(cx, cy - 65, `ランク: 【 ${rank} 】`, {
         fontSize: '17px',
         fontStyle: 'bold',
-        fill: '#f472b6'
-      }).setOrigin(0.5);
+        fill: '#facc15',
+        align: 'center',
+        wordWrap: { width: 380 }
+      }).setOrigin(0.5).setScrollFactor(0);
 
-      // 1. もう一回 (RETRY)
-      const retryBtn = this.add.rectangle(width / 2, 375, width - 80, 52, 0x0284c7).setInteractive({ useHandCursor: true });
-      this.add.text(width / 2, 375, t.retryBtn, { fontSize: '18px', fontStyle: 'bold', fill: '#fff' }).setOrigin(0.5);
+      // 4. ベストスコア: 「🏆 BEST SCORE: {ベストスコア}」
+      this.add.text(cx, cy - 15, `🏆 BEST SCORE: ${best}${isNew ? ' 🔥 NEW!' : ''}`, {
+        fontSize: '18px',
+        fontStyle: 'bold',
+        fill: '#f472b6'
+      }).setOrigin(0.5).setScrollFactor(0);
+
+      // 上段ボタン（横幅いっぱい）: 🔄 もう一回 / 🔄 RETRY
+      const retryBtn = this.add.rectangle(cx, cy + 60, 360, 52, 0x10b981)
+        .setStrokeStyle(1.5, 0x6ee7b7, 0.8)
+        .setScrollFactor(0)
+        .setInteractive({ useHandCursor: true });
+      this.add.text(cx, cy + 60, currentLang === 'ja' ? '🔄 もう一回' : '🔄 RETRY', {
+        fontSize: '18px',
+        fontStyle: 'bold',
+        fill: '#ffffff'
+      }).setOrigin(0.5).setScrollFactor(0);
       retryBtn.on('pointerdown', () => {
         SoundSynth.playTap();
         this.scene.start('SceneGame');
       });
 
-      // 2. Xにポスト (SHARE)
-      const shareBtn = this.add.rectangle(width / 2, 445, width - 80, 52, 0x0369a1).setInteractive({ useHandCursor: true });
-      this.add.text(width / 2, 445, t.shareBtn, { fontSize: '18px', fontStyle: 'bold', fill: '#fff' }).setOrigin(0.5);
+      // 中段ボタン（横幅いっぱい）: 𝕏 でポスト / 𝕏 POST TO X
+      const shareBtn = this.add.rectangle(cx, cy + 126, 360, 52, 0x0284c7)
+        .setStrokeStyle(1.5, 0x7dd3fc, 0.8)
+        .setScrollFactor(0)
+        .setInteractive({ useHandCursor: true });
+      this.add.text(cx, cy + 126, currentLang === 'ja' ? '𝕏 でポスト' : '𝕏 POST TO X', {
+        fontSize: '18px',
+        fontStyle: 'bold',
+        fill: '#ffffff'
+      }).setOrigin(0.5).setScrollFactor(0);
       shareBtn.on('pointerdown', () => {
         SoundSynth.playTap();
-        const text = encodeURIComponent(t.shareText.replace('{score}', this.finalScore).replace('{wave}', this.wave));
+        const text = encodeURIComponent(t.shareText.replace('{score}', this.finalScore).replace('{rank}', rank).replace('{wave}', this.wave));
         const url = encodeURIComponent(window.location.href);
         window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
       });
 
-      // 3. タイトルへ (TITLE)
-      const titleBtn = this.add.rectangle(width / 2 - 95, 525, 160, 46, 0x334155).setInteractive({ useHandCursor: true });
-      this.add.text(width / 2 - 95, 525, t.titleBtn, { fontSize: '14px', fontStyle: 'bold', fill: '#cbd5e1' }).setOrigin(0.5);
+      // 下段ボタン（左右2分割で横並び配置）
+      const halfW = 172;
+      const gap = 16;
+      const leftX = cx - (halfW / 2 + gap / 2);
+      const rightX = cx + (halfW / 2 + gap / 2);
+      const bottomY = cy + 192;
+
+      // 左ボタン: 🏠 タイトルへ / 🏠 TITLE
+      const titleBtn = this.add.rectangle(leftX, bottomY, halfW, 48, 0x334155)
+        .setStrokeStyle(1.5, 0x94a3b8, 0.6)
+        .setScrollFactor(0)
+        .setInteractive({ useHandCursor: true });
+      this.add.text(leftX, bottomY, currentLang === 'ja' ? '🏠 タイトルへ' : '🏠 TITLE', {
+        fontSize: '15px',
+        fontStyle: 'bold',
+        fill: '#e2e8f0'
+      }).setOrigin(0.5).setScrollFactor(0);
       titleBtn.on('pointerdown', () => {
         SoundSynth.playTap();
         this.scene.start('SceneTitle');
       });
 
-      // 4. ポータルへ (MORE GAMES)
-      const portalBtn = this.add.rectangle(width / 2 + 95, 525, 160, 46, 0x475569).setInteractive({ useHandCursor: true });
-      this.add.text(width / 2 + 95, 525, t.portalBtn, { fontSize: '14px', fontStyle: 'bold', fill: '#cbd5e1' }).setOrigin(0.5);
+      // 右ボタン: 🌐 MENUに戻る / 🌐 MENU
+      const portalBtn = this.add.rectangle(rightX, bottomY, halfW, 48, 0x475569)
+        .setStrokeStyle(1.5, 0x94a3b8, 0.6)
+        .setScrollFactor(0)
+        .setInteractive({ useHandCursor: true });
+      this.add.text(rightX, bottomY, currentLang === 'ja' ? '🌐 MENUに戻る' : '🌐 MENU', {
+        fontSize: '15px',
+        fontStyle: 'bold',
+        fill: '#e2e8f0'
+      }).setOrigin(0.5).setScrollFactor(0);
       portalBtn.on('pointerdown', () => {
         SoundSynth.playTap();
         window.open('../index.html', '_self');

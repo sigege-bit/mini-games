@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>SHIGEGE MINI-GAMES | ハイパーカジュアルWebゲーム集</title>
-  <meta name="description" content="A・イシオ（@sigege）制作のハイパーカジュアルWebミニゲームポータル。積む積む、キャッチミーイフユーニャン、超人サッカー、闘犬乱舞、花のピョンピョン丸など全5作品がブラウザですぐに遊べます！">
+  <meta name="description" content="A・イシオ（@sigege）制作のハイパーカジュアルWebミニゲームポータル。積む積む、キャッチミーイフユーニャン、超人サッカー、闘犬乱舞、花のピョンピョン丸、逃げるが勝ちなど全6作品がブラウザですぐに遊べます！">
   <meta name="theme-color" content="#0a0a14">
 
   <!-- Google Fonts: font-display=swap によるゼロ遅延・即時描画 -->
@@ -485,6 +485,15 @@
       background: linear-gradient(135deg, #a855f7, #ec4899, transparent 70%);
     }
 
+    .card-survivor {
+      --theme-color: #00f5d4;
+      --theme-gradient: linear-gradient(135deg, #00f5d4, #00b4d8);
+      --card-glow: 0 0 35px rgba(0, 245, 212, 0.25);
+    }
+    .card-survivor:hover::before {
+      background: linear-gradient(135deg, #00f5d4, #00b4d8, transparent 70%);
+    }
+
     /* Card Top / Visual Banner */
     .card-visual {
       position: relative;
@@ -963,7 +972,7 @@
 
     <!-- Hero Section -->
     <section class="hero">
-      <div class="hero-badge" data-i18n="hero-badge">✨ 5 Playable Hyper-Casual Games</div>
+      <div class="hero-badge" data-i18n="hero-badge">✨ 6 Playable Hyper-Casual Games</div>
       <h2 class="hero-title">
         <span data-i18n="hero-title-1">Play Fast,</span> <br>
         <span class="highlight" data-i18n="hero-title-2">Feel The Rush.</span>
@@ -983,10 +992,10 @@
       <div class="section-title">
         <span data-i18n="sec-title">🎮 ALL GAMES</span>
       </div>
-      <div class="game-count-badge" data-i18n="game-count">5 TITLES AVAILABLE</div>
+      <div class="game-count-badge" data-i18n="game-count">6 TITLES AVAILABLE</div>
     </div>
 
-    <!-- Games Grid (5 Games, Centered & Balanced) -->
+    <!-- Games Grid (6 Games, Centered & Balanced) -->
     <div class="games-grid">
 
       <!-- 01: 積む積む (01-stack-tower) -->
@@ -1124,6 +1133,33 @@
         </div>
       </article>
 
+      <!-- 06: 逃げるが勝ち (06-survivor) -->
+      <article class="game-card card-survivor" data-url="./06-survivor/index.html">
+        <div class="card-visual">
+          <span class="card-index-tag">#06</span>
+          <span class="control-badge">🕹️ <span data-i18n="g6-control">DRAG & SURVIVE</span></span>
+          <div class="visual-bg-glow"></div>
+          <span class="game-main-emoji">🏃</span>
+        </div>
+        <div class="card-body">
+          <div class="card-title-group">
+            <h3 class="card-title" data-i18n="g6-title">逃げるが勝ち</h3>
+            <span class="card-subtitle">RUN TO SURVIVE</span>
+          </div>
+          <p class="card-description" data-i18n="g6-desc">
+            迫りくる敵の大群から全力で逃げ回れ！攻撃はオート射撃、集めたジェムで自機を3択強化して限界まで生き延びろ！
+          </p>
+          <div class="card-tags">
+            <span class="tag">#Survival</span>
+            <span class="tag">#AutoShot</span>
+            <span class="tag">#Roguelike</span>
+          </div>
+          <a href="./06-survivor/index.html" class="btn-play">
+            <span data-i18n="btn-play">PLAY NOW</span> 🎮
+          </a>
+        </div>
+      </article>
+
     </div>
 
     <!-- Features / Highlights Section -->
@@ -1164,6 +1200,7 @@
         </div>
 
         <div class="footer-links">
+          <a href="./06-survivor/index.html" class="footer-link">🏃 06 Run to Survive</a>
           <a href="https://x.com/sigege" target="_blank" rel="noopener noreferrer" class="footer-link">
             <span>🐦</span> <span>X (Twitter)</span>
           </a>
@@ -1192,13 +1229,13 @@
           'header-tag': 'Hyper-Casual Web Games',
           'sfx-on-label': 'ON',
           'sfx-off-label': 'OFF',
-          'hero-badge': '✨ ブラウザで今すぐ遊べる全5作品',
+          'hero-badge': '✨ ブラウザで今すぐ遊べる全6作品',
           'hero-title-1': 'スキマ時間に、',
           'hero-title-2': '最高の爽快感を。',
           'hero-desc': 'インストール不要・ブラウザで今すぐ遊べる爽快カジュアルゲームコレクション。極上の手触りと直感操作でハイスコアを叩き出せ！',
           'btn-random': '🎲 RANDOM PLAY / ランダムで遊ぶ',
           'sec-title': '🎮 ALL GAMES',
-          'game-count': '全 5 タイトル公開中',
+          'game-count': '全 6 タイトル公開中',
           'btn-play': '今すぐ遊ぶ',
           
           'g1-title': '積む積む',
@@ -1221,6 +1258,10 @@
           'g5-desc': '長押しでジャンプパワーを溜め、足場から足場へ飛び移れ！中心に着地してPERFECTコンボを重ねる度胸試し。',
           'g5-control': '長押しチャージ',
 
+          'g6-title': '逃げるが勝ち',
+          'g6-desc': '迫りくる敵の大群から全力で逃げ回れ！攻撃はオート射撃、集めたジェムで自機を3択強化して限界まで生き延びろ！',
+          'g6-control': 'DRAG & SURVIVE',
+
           'feat1-title': '即時プレイ',
           'feat1-desc': 'アプリダウンロード不要。ワンタップで0秒起動。',
           'feat2-title': 'スマホ最適化',
@@ -1234,13 +1275,13 @@
           'header-tag': 'Hyper-Casual Web Games',
           'sfx-on-label': 'ON',
           'sfx-off-label': 'OFF',
-          'hero-badge': '✨ 5 Playable Hyper-Casual Games',
+          'hero-badge': '✨ 6 Playable Hyper-Casual Games',
           'hero-title-1': 'Play Fast,',
           'hero-title-2': 'Feel The Rush.',
           'hero-desc': 'Zero install, instant browser hyper-casual games. Dive in with intuitive controls and beat your high scores!',
           'btn-random': '🎲 RANDOM PLAY',
           'sec-title': '🎮 ALL GAMES',
-          'game-count': '5 TITLES AVAILABLE',
+          'game-count': '6 TITLES AVAILABLE',
           'btn-play': 'PLAY NOW',
 
           'g1-title': 'Stack Tower',
@@ -1262,6 +1303,10 @@
           'g5-title': 'Pyonpyon Ninja',
           'g5-desc': 'Hold to charge jump power and leap across isometric rooftops! Nail dead-center landings for perfect combos.',
           'g5-control': 'HOLD & RELEASE',
+
+          'g6-title': 'RUN TO SURVIVE',
+          'g6-desc': 'Outrun relentless waves of enemies! Fire automatically, collect gems, and pick from 3 upgrades to survive to the limit!',
+          'g6-control': 'DRAG & SURVIVE',
 
           'feat1-title': 'INSTANT PLAY',
           'feat1-desc': 'No download required. Play in 0 seconds directly in your browser.',
@@ -1427,7 +1472,8 @@
         './02-catch-game/index.html',
         './03-space-kicker/index.html',
         './04-emoji-slash/index.html',
-        './05-jump-ninja/index.html'
+        './05-jump-ninja/index.html',
+        './06-survivor/index.html'
       ];
 
       const btnRandom = document.getElementById('btn-random-play');

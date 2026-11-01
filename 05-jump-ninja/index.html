@@ -24,11 +24,16 @@
       -webkit-touch-callout: none;
     }
 
-    body, html {
-      width: 100%;
-      height: 100%;
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #06070d;
       overflow: hidden;
-      background-color: #060814;
       font-family: 'M PLUS Rounded 1c', sans-serif;
       touch-action: none;
     }
@@ -43,10 +48,47 @@
     }
 
     canvas {
-      display: block;
+      display: block !important;
+      margin: auto !important;
       box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
     }
-  </style>
+  
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #06070d;
+      overflow: hidden;
+    }
+    
+  
+
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      background-color: #06070d !important;
+      overflow: hidden !important;
+    }
+    canvas {
+      display: block !important;
+      margin: auto !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      width: auto !important;
+      height: auto !important;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.8) !important;
+    }
+  
+</style>
 </head>
 <body>
 
@@ -70,13 +112,17 @@ const I18N = {
     resultSub: '谷底へと花吹雪とともに散っていった…',
     finalScore: '獲得スコア',
     maxCombo: '最大コンボ',
-    retry: 'もう一度跳ぶ 🔄',
-    share: '結果をXでシェア 🐦',
-    backTitle: 'タイトルへ 🏠',
-    moreGames: '他のゲーム 🌐',
+    retry: '🔄 もう一回',
+    share: '𝕏 でポスト',
+    backTitle: '🏠 タイトルへ',
+    moreGames: '🌐 MENUに戻る',
+    rankC: '見習い忍者',
+    rankB: '中忍',
+    rankA: '上忍',
+    rankS: '伝説の忍頭',
     perfect: '🌸 PERFECT! 🌸',
     assist: 'ギリギリセーフ！ 🌸',
-    shareText: (score, combo) => `🌸🥷『花のピョンピョン丸』でスコア【${score}点】（最大コンボx${combo}）を達成！\nミリ単位の目測でビルの屋上をピョンピョン飛び移れ！\n#花のピョンピョン丸 #ShigegeGames #Phaser3`
+    shareText: (score, rank) => `🌸🥷『花のピョンピョン丸』で SCORE: ${score}（ランク: 【 ${rank} 】）を達成！\nミリ単位の目測でビルの屋上をピョンピョン飛び移れ！\n#花のピョンピョン丸 #ShigegeGames #Phaser3`
   },
   en: {
     title: 'Pyonpyon Ninja',
@@ -91,13 +137,17 @@ const I18N = {
     resultSub: 'Scattered into the abyss like cherry blossoms…',
     finalScore: 'FINAL SCORE',
     maxCombo: 'MAX COMBO',
-    retry: 'RETRY 🔄',
-    share: 'SHARE ON X 🐦',
-    backTitle: 'TITLE 🏠',
-    moreGames: 'MORE GAMES 🌐',
+    retry: '🔄 RETRY',
+    share: '𝕏 POST TO X',
+    backTitle: '🏠 TITLE',
+    moreGames: '🌐 MENU',
+    rankC: 'Novice Ninja',
+    rankB: 'Skilled Ninja',
+    rankA: 'Master Ninja',
+    rankS: 'Legendary Shinobi',
     perfect: '🌸 PERFECT! 🌸',
     assist: 'CLOSE CALL! 🌸',
-    shareText: (score, combo) => `🌸🥷 Leaped through rooftops in "Pyonpyon Ninja" with a score of ${score}! (Max Combo: x${combo})\n#PyonpyonNinja #ShigegeGames #Phaser3`
+    shareText: (score, rank) => `🌸🥷 Leaped through rooftops in "Pyonpyon Ninja" with SCORE: ${score} (Rank: 【 ${rank} 】)!\n#PyonpyonNinja #ShigegeGames #Phaser3`
   }
 };
 
@@ -446,12 +496,25 @@ class SceneTitle extends Phaser.Scene {
     // 桜アンビエント
     this.createAmbientSakura();
 
-    // ヘッダーUI: 左サウンド / 右言語
+    // ヘッダーUI: 左MENU / 中央サウンド / 右言語
+    this.menuBtn = createPillButton(
+      this,
+      135,
+      60,
+      210,
+      50,
+      currentLang === 'ja' ? '🏠 MENUに戻る' : '🏠 MENU',
+      () => {
+        audio.init();
+        window.location.href = '../index.html';
+      }
+    );
+
     this.soundBtn = createPillButton(
       this,
-      130,
+      375,
       60,
-      180,
+      210,
       50,
       soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF',
       () => {
@@ -462,9 +525,9 @@ class SceneTitle extends Phaser.Scene {
 
     this.langBtn = createPillButton(
       this,
-      CONFIG.width - 130,
+      615,
       60,
-      180,
+      210,
       50,
       currentLang === 'ja' ? '🇯🇵 日本語' : '🇺🇸 English',
       () => {
@@ -1540,167 +1603,126 @@ class SceneResult extends Phaser.Scene {
       localStorage.setItem('jump_pyon_best', bestScore.toString());
     }
 
+    let rank = t.rankC;
+    if (this.finalScore >= 100) rank = t.rankS;
+    else if (this.finalScore >= 50) rank = t.rankA;
+    else if (this.finalScore >= 20) rank = t.rankB;
+
+    const cx = CONFIG.width / 2;
+    const cy = CONFIG.height / 2;
+
     // 半透明背景オーバーレイ
-    const overlay = this.add.graphics();
-    overlay.fillStyle(0x040610, 0.92);
-    overlay.fillRect(0, 0, CONFIG.width, CONFIG.height);
+    this.add.rectangle(cx, cy, CONFIG.width, CONFIG.height, 0x040610, 0.94).setScrollFactor(0);
 
-    // リザルトカード
-    const card = this.add.container(CONFIG.width / 2, CONFIG.height / 2);
-    const cardBg = this.add.graphics();
-    cardBg.fillStyle(0x12142e, 0.95);
-    cardBg.fillRoundedRect(-300, -420, 600, 840, 32);
-    cardBg.lineStyle(2.5, 0xff2a8d, 0.5);
-    cardBg.strokeRoundedRect(-300, -420, 600, 840, 32);
-    card.add(cardBg);
+    // 中央パネル
+    this.add.rectangle(cx, cy, 620, 780, 0x12142e, 0.96)
+      .setStrokeStyle(3, 0xff2a8d, 0.65)
+      .setScrollFactor(0);
 
-    // アイコン & タイトル
-    const skullIcon = this.add.text(0, -350, '🌸💀', { fontSize: '56px' }).setOrigin(0.5);
-    card.add(skullIcon);
-
-    const titleText = this.add.text(0, -280, t.resultTitle, {
+    // 1. 終了タイトル
+    this.add.text(cx, cy - 290, t.resultTitle, {
       fontFamily: "'M PLUS Rounded 1c', sans-serif",
-      fontSize: '40px',
+      fontSize: '48px',
       fontWeight: '900',
       color: '#ff4757',
       stroke: '#000',
-      strokeThickness: 5
-    }).setOrigin(0.5);
-    card.add(titleText);
+      strokeThickness: 6
+    }).setOrigin(0.5).setScrollFactor(0);
 
-    const subText = this.add.text(0, -225, t.resultSub, {
-      fontFamily: "'M PLUS Rounded 1c', sans-serif",
-      fontSize: '18px',
-      fontWeight: '700',
-      color: '#b5c7ec'
-    }).setOrigin(0.5);
-    card.add(subText);
-
-    // スタッツボックス
-    const statsBg = this.add.graphics();
-    statsBg.fillStyle(0x080c1c, 0.85);
-    statsBg.fillRoundedRect(-250, -180, 500, 185, 20);
-    statsBg.lineStyle(1.5, 0xffffff, 0.15);
-    statsBg.strokeRoundedRect(-250, -180, 500, 185, 20);
-    card.add(statsBg);
-
-    // スコア行
-    const lblScore = this.add.text(-220, -145, t.finalScore, {
-      fontFamily: "'M PLUS Rounded 1c', sans-serif",
-      fontSize: '20px',
-      fontWeight: '700',
-      color: '#8fa2ce'
-    });
-    const valScore = this.add.text(220, -145, this.finalScore.toString(), {
-      fontFamily: "'Orbitron', sans-serif",
-      fontSize: '34px',
-      fontWeight: '900',
-      color: '#ffffff'
-    }).setOrigin(1, 0.2);
-    card.add([lblScore, valScore]);
-
-    // コンボ行
-    const lblCombo = this.add.text(-220, -90, t.maxCombo, {
-      fontFamily: "'M PLUS Rounded 1c', sans-serif",
-      fontSize: '20px',
-      fontWeight: '700',
-      color: '#8fa2ce'
-    });
-    const valCombo = this.add.text(220, -90, `x${this.finalCombo}`, {
-      fontFamily: "'Orbitron', sans-serif",
-      fontSize: '32px',
-      fontWeight: '900',
-      color: '#ffffff'
-    }).setOrigin(1, 0.2);
-    card.add([lblCombo, valCombo]);
-
-    // BEST行
-    const lblBest = this.add.text(-220, -35, 'BEST', {
-      fontFamily: "'M PLUS Rounded 1c', sans-serif",
-      fontSize: '20px',
-      fontWeight: '700',
-      color: '#8fa2ce'
-    });
-    const valBest = this.add.text(220, -35, `${bestScore} ${isNewRecord ? '👑 NEW!' : ''}`, {
-      fontFamily: "'Orbitron', sans-serif",
-      fontSize: '32px',
+    // 2. 今回スコア
+    this.add.text(cx, cy - 185, `SCORE: ${this.finalScore}`, {
+      fontFamily: "'Orbitron', 'M PLUS Rounded 1c', sans-serif",
+      fontSize: '48px',
       fontWeight: '900',
       color: '#ffd700'
-    }).setOrigin(1, 0.2);
-    card.add([lblBest, valBest]);
+    }).setOrigin(0.5).setScrollFactor(0);
 
-    // 1. RETRY ボタン（最優先・大型）
-    const retryBtn = createActionButton(
-      this,
-      0,
-      75,
-      500,
-      68,
-      t.retry,
-      [0xff2a8d, 0xff758c],
-      () => {
-        audio.init();
-        this.scene.start('MainScene');
-      }
-    );
-    card.add(retryBtn);
+    // 3. ランク／称号
+    this.add.text(cx, cy - 100, `ランク: 【 ${rank} 】`, {
+      fontFamily: "'M PLUS Rounded 1c', sans-serif",
+      fontSize: '28px',
+      fontWeight: '800',
+      color: '#ff758c',
+      align: 'center',
+      wordWrap: { width: 560 }
+    }).setOrigin(0.5).setScrollFactor(0);
 
-    // 2. SHARE ON X ボタン
-    const shareBtn = createActionButton(
-      this,
-      0,
-      155,
-      500,
-      64,
-      t.share,
-      [0x1da1f2, 0x0c85d0],
-      () => {
-        const text = t.shareText(this.finalScore, this.finalCombo);
-        const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.href)}`;
-        window.open(url, '_blank');
-      }
-    );
-    card.add(shareBtn);
+    // 4. ベストスコア
+    this.add.text(cx, cy - 25, `🏆 BEST SCORE: ${bestScore}${isNewRecord ? ' 🔥 NEW!' : ''}`, {
+      fontFamily: "'M PLUS Rounded 1c', sans-serif",
+      fontSize: '26px',
+      fontWeight: '800',
+      color: '#38bdf8'
+    }).setOrigin(0.5).setScrollFactor(0);
 
-    // 3. TITLE & MORE GAMES (2列配置)
-    const titleBtn = createActionButton(
-      this,
-      -130,
-      235,
-      230,
-      58,
-      t.backTitle,
-      [0x2a3356, 0x182038],
-      () => {
-        audio.init();
-        this.scene.start('SceneTitle');
-      }
-    );
-    card.add(titleBtn);
+    // 上段ボタン: もう一回 / RETRY (横幅いっぱい)
+    const fullW = 540;
+    const retryBtn = this.add.rectangle(cx, cy + 85, fullW, 74, 0xff2a8d)
+      .setStrokeStyle(2, 0xff758c)
+      .setInteractive({ useHandCursor: true })
+      .setScrollFactor(0);
+    this.add.text(cx, cy + 85, t.retry, {
+      fontFamily: "'M PLUS Rounded 1c', sans-serif",
+      fontSize: '26px',
+      fontWeight: '900',
+      color: '#ffffff'
+    }).setOrigin(0.5).setScrollFactor(0);
+    retryBtn.on('pointerdown', () => {
+      audio.init();
+      this.scene.start('MainScene');
+    });
 
-    const moreBtn = createActionButton(
-      this,
-      130,
-      235,
-      230,
-      58,
-      t.moreGames,
-      [0x2a3356, 0x182038],
-      () => {
-        window.location.href = '../index.html';
-      }
-    );
-    card.add(moreBtn);
+    // 中段ボタン: 𝕏 でポスト / 𝕏 POST TO X (横幅いっぱい)
+    const shareBtn = this.add.rectangle(cx, cy + 180, fullW, 74, 0x0284c7)
+      .setStrokeStyle(2, 0x38bdf8)
+      .setInteractive({ useHandCursor: true })
+      .setScrollFactor(0);
+    this.add.text(cx, cy + 180, t.share, {
+      fontFamily: "'M PLUS Rounded 1c', sans-serif",
+      fontSize: '26px',
+      fontWeight: '900',
+      color: '#ffffff'
+    }).setOrigin(0.5).setScrollFactor(0);
+    shareBtn.on('pointerdown', () => {
+      const text = t.shareText(this.finalScore, rank);
+      const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.href)}`;
+      window.open(url, '_blank');
+    });
 
-    // カードの出現アニメーション
-    card.setScale(0.85).setAlpha(0);
-    this.tweens.add({
-      targets: card,
-      scaleX: 1,
-      scaleY: 1,
-      alpha: 1,
-      duration: 300,
-      ease: 'Back.easeOut'
+    // 下段ボタン (左右2分割で横並び配置)
+    const halfW = 258;
+    const gap = 24;
+    const bottomY = cy + 275;
+    const leftX = cx - (halfW / 2 + gap / 2);
+    const rightX = cx + (halfW / 2 + gap / 2);
+
+    const titleBtn = this.add.rectangle(leftX, bottomY, halfW, 68, 0x334155)
+      .setStrokeStyle(2, 0x64748b)
+      .setInteractive({ useHandCursor: true })
+      .setScrollFactor(0);
+    this.add.text(leftX, bottomY, t.backTitle, {
+      fontFamily: "'M PLUS Rounded 1c', sans-serif",
+      fontSize: '22px',
+      fontWeight: '800',
+      color: '#f8fafc'
+    }).setOrigin(0.5).setScrollFactor(0);
+    titleBtn.on('pointerdown', () => {
+      audio.init();
+      this.scene.start('SceneTitle');
+    });
+
+    const moreBtn = this.add.rectangle(rightX, bottomY, halfW, 68, 0x475569)
+      .setStrokeStyle(2, 0x94a3b8)
+      .setInteractive({ useHandCursor: true })
+      .setScrollFactor(0);
+    this.add.text(rightX, bottomY, t.moreGames, {
+      fontFamily: "'M PLUS Rounded 1c', sans-serif",
+      fontSize: '22px',
+      fontWeight: '800',
+      color: '#f8fafc'
+    }).setOrigin(0.5).setScrollFactor(0);
+    moreBtn.on('pointerdown', () => {
+      window.location.href = '../index.html';
     });
   }
 }
