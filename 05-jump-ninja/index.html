@@ -686,7 +686,9 @@ class MainScene extends Phaser.Scene {
     this.currentPlatformIndex = 0;
 
     this.bgLayer = this.add.container(0, 0);
-    this.worldLayer = this.add.container(0, 0);
+    this.platformLayer = this.add.container(0, 0);
+    this.shadowLayer = this.add.container(0, 0);
+    this.playerLayer = this.add.container(0, 0);
     this.fxLayer = this.add.container(0, 0);
 
     this.createBackground();
@@ -714,17 +716,44 @@ class MainScene extends Phaser.Scene {
      ------------------------------------------------------------------------ */
   createNinjaTexture() {
     if (this.textures.exists('ninja_sprite')) return;
+    const size = 110;
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = size;
+    tempCanvas.height = size;
+    const tCtx = tempCanvas.getContext('2d');
+
+    tCtx.font = '84px sans-serif';
+    tCtx.textAlign = 'center';
+    tCtx.textBaseline = 'middle';
+    tCtx.fillText('🥷', size / 2, size / 2);
+
+    // フォント余白を除去し、忍者の最下端ピクセル（足元）をキャンバス底面(y = size - 2)へ一致させる
+    const imgData = tCtx.getImageData(0, 0, size, size).data;
+    let maxY = size - 1;
+    for (let y = size - 1; y >= 0; y--) {
+      let found = false;
+      for (let x = 0; x < size; x++) {
+        if (imgData[(y * size + x) * 4 + 3] > 20) {
+          maxY = y;
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+    const shiftY = (size - 2) - maxY;
+
     const canvas = document.createElement('canvas');
-    canvas.width = 110;
-    canvas.height = 130;
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext('2d');
 
     ctx.font = '84px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.shadowColor = 'rgba(255, 42, 141, 0.9)';
-    ctx.shadowBlur = 18;
-    ctx.fillText('🥷', 55, 65);
+    ctx.shadowBlur = 14;
+    ctx.fillText('🥷', size / 2, size / 2 + shiftY);
 
     this.textures.addCanvas('ninja_sprite', canvas);
   }
@@ -951,6 +980,7 @@ class MainScene extends Phaser.Scene {
      ------------------------------------------------------------------------ */
   createPlatform(x, y, width, depth, height, colorTheme, isCylinder = false) {
     const container = this.add.container(x, y);
+    container.setDepth(10);
     container.pWidth = width;
     container.pDepth = depth;
     container.pHeight = height;
@@ -958,56 +988,63 @@ class MainScene extends Phaser.Scene {
     container.colorTheme = colorTheme;
     container.origY = y;
 
+    // 天面（◎がある上面エリア）の幾何学的中心オフセット: コンテナ基準点から手前（画面下方向）へ +55px
+    const SURFACE_OFFSET_Y = 55;
+    container.surfaceOffsetY = SURFACE_OFFSET_Y;
+    container.surfaceX = x;
+    container.surfaceY = y + SURFACE_OFFSET_Y;
+
     const g = this.add.graphics();
     const halfW = width / 2;
     const halfD = depth / 2;
+    const cy = SURFACE_OFFSET_Y;
 
     if (isCylinder) {
       g.fillStyle(colorTheme.side1, 1);
-      g.fillRect(-halfW, 0, width, height);
+      g.fillRect(-halfW, cy, width, height);
 
       g.fillStyle(0xffffff, 0.18);
-      g.fillRect(-halfW + 10, 14, width - 20, 6);
-      g.fillRect(-halfW + 10, 32, width - 20, 6);
+      g.fillRect(-halfW + 10, cy + 14, width - 20, 6);
+      g.fillRect(-halfW + 10, cy + 32, width - 20, 6);
 
       g.fillStyle(colorTheme.side2, 1);
-      g.fillEllipse(0, height, width, depth);
+      g.fillEllipse(0, cy + height, width, depth);
 
       g.fillStyle(colorTheme.top, 1);
-      g.fillEllipse(0, 0, width, depth);
+      g.fillEllipse(0, cy, width, depth);
       g.lineStyle(3, 0xffffff, 0.85);
-      g.strokeEllipse(0, 0, width, depth);
+      g.strokeEllipse(0, cy, width, depth);
     } else {
       g.fillStyle(colorTheme.side2, 1);
       g.beginPath();
-      g.moveTo(-halfW, 0);
-      g.lineTo(0, halfD);
-      g.lineTo(0, halfD + height);
-      g.lineTo(-halfW, height);
+      g.moveTo(-halfW, cy);
+      g.lineTo(0, cy + halfD);
+      g.lineTo(0, cy + halfD + height);
+      g.lineTo(-halfW, cy + height);
       g.closePath();
       g.fill();
 
       g.fillStyle(colorTheme.side1, 1);
       g.beginPath();
-      g.moveTo(0, halfD);
-      g.lineTo(halfW, 0);
-      g.lineTo(halfW, height);
-      g.lineTo(0, halfD + height);
+      g.moveTo(0, cy + halfD);
+      g.lineTo(halfW, cy);
+      g.lineTo(halfW, cy + height);
+      g.lineTo(0, cy + halfD + height);
       g.closePath();
       g.fill();
 
       g.fillStyle(0xffffff, 0.22);
-      g.fillRoundedRect(-halfW + 14, 16, halfW - 22, 12, 2);
-      g.fillRoundedRect(10, 16, halfW - 22, 12, 2);
-      g.fillRoundedRect(-halfW + 14, 38, halfW - 22, 12, 2);
-      g.fillRoundedRect(10, 38, halfW - 22, 12, 2);
+      g.fillRoundedRect(-halfW + 14, cy + 16, halfW - 22, 12, 2);
+      g.fillRoundedRect(10, cy + 16, halfW - 22, 12, 2);
+      g.fillRoundedRect(-halfW + 14, cy + 38, halfW - 22, 12, 2);
+      g.fillRoundedRect(10, cy + 38, halfW - 22, 12, 2);
 
       g.fillStyle(colorTheme.top, 1);
       g.beginPath();
-      g.moveTo(0, -halfD);
-      g.lineTo(halfW, 0);
-      g.lineTo(0, halfD);
-      g.lineTo(-halfW, 0);
+      g.moveTo(0, cy - halfD);
+      g.lineTo(halfW, cy);
+      g.lineTo(0, cy + halfD);
+      g.lineTo(-halfW, cy);
       g.closePath();
       g.fill();
       g.lineStyle(3.5, 0xffffff, 0.9);
@@ -1016,7 +1053,8 @@ class MainScene extends Phaser.Scene {
 
     container.add(g);
 
-    const target = this.add.image(0, 0, 'target_mark');
+    // 的（◎）の描画位置を天面グラフィックの中心 (0, cy) = ワールド座標 (surfaceX, surfaceY) と完全一致させる
+    const target = this.add.image(0, cy, 'target_mark');
     const scale = (width / 180) * 0.85;
     target.setScale(scale);
     container.add(target);
@@ -1032,12 +1070,12 @@ class MainScene extends Phaser.Scene {
       ease: 'Sine.easeInOut'
     });
 
-    this.worldLayer.add(container);
+    this.platformLayer.add(container);
     return container;
   }
 
   setupInitialPlatforms() {
-    const p1 = this.createPlatform(CONFIG.width * 0.36, CONFIG.height * 0.65, 205, 110, 120, CONFIG.colors[0], false);
+    const p1 = this.createPlatform(CONFIG.width * 0.36, CONFIG.height * 0.65 - 55, 205, 110, 120, CONFIG.colors[0], false);
     this.platforms.push(p1);
     this.spawnNextPlatform(p1, 1);
   }
@@ -1045,20 +1083,21 @@ class MainScene extends Phaser.Scene {
   spawnNextPlatform(prevPlatform, forcedDirection = 0) {
     let dir = forcedDirection;
     if (dir === 0) {
-      if (prevPlatform.x < CONFIG.width * 0.32) {
+      if (prevPlatform.surfaceX < CONFIG.width * 0.32) {
         dir = 1;
-      } else if (prevPlatform.x > CONFIG.width * 0.68) {
+      } else if (prevPlatform.surfaceX > CONFIG.width * 0.68) {
         dir = -1;
       } else {
         dir = Math.random() > 0.5 ? 1 : -1;
       }
     }
 
-    const distance = Phaser.Math.Between(220, 400);
+    const distance = Phaser.Math.Between(220, 380);
     const angleRad = dir === 1 ? -Phaser.Math.DegToRad(30) : -Phaser.Math.DegToRad(150);
 
-    const nx = prevPlatform.x + Math.cos(angleRad) * distance;
-    const ny = prevPlatform.y + Math.sin(angleRad) * distance;
+    // 次の土台の天面中心 (surfaceX, surfaceY) を計算
+    const nextSurfaceX = prevPlatform.surfaceX + Math.cos(angleRad) * distance;
+    const nextSurfaceY = prevPlatform.surfaceY + Math.sin(angleRad) * distance;
 
     const difficultyMod = Math.min(this.score * 1.0, 35);
     const width = Phaser.Math.Between(170 - difficultyMod, 215 - difficultyMod);
@@ -1067,18 +1106,29 @@ class MainScene extends Phaser.Scene {
     const isCylinder = Math.random() > 0.45;
     const color = Phaser.Utils.Array.GetRandom(CONFIG.colors);
 
+    const surfaceOffsetY = prevPlatform.surfaceOffsetY || 55;
+    const nx = nextSurfaceX;
+    const ny = nextSurfaceY - surfaceOffsetY;
+
     const nextPlatform = this.createPlatform(nx, ny, width, depth, height, color, isCylinder);
     nextPlatform.directionFromPrev = dir;
     nextPlatform.targetDistance = distance;
+    nextPlatform.surfaceX = nextSurfaceX;
+    nextPlatform.surfaceY = nextSurfaceY;
 
-    nextPlatform.y -= 150;
+    nextPlatform.y = ny - 150;
     nextPlatform.alpha = 0;
     this.tweens.add({
       targets: nextPlatform,
       y: ny,
       alpha: 1,
       duration: 350,
-      ease: 'Back.easeOut'
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        nextPlatform.y = ny;
+        nextPlatform.surfaceX = nextSurfaceX;
+        nextPlatform.surfaceY = nextSurfaceY;
+      }
     });
 
     this.platforms.push(nextPlatform);
@@ -1089,20 +1139,25 @@ class MainScene extends Phaser.Scene {
      ------------------------------------------------------------------------ */
   createPlayer() {
     const curP = this.platforms[0];
+    const startX = curP.surfaceX;
+    const startY = curP.surfaceY; // 土台天面中心 (surfaceX, surfaceY) に接地
 
-    this.playerShadow = this.add.ellipse(curP.x, curP.y, 52, 26, 0x000000, 0.45);
-    this.worldLayer.add(this.playerShadow);
+    this.playerShadow = this.add.ellipse(startX, startY, 52, 26, 0x000000, 0.45);
+    this.playerShadow.setDepth(50);
+    this.shadowLayer.add(this.playerShadow);
 
-    this.ninja = this.add.image(curP.x, curP.y - 38, 'ninja_sprite');
-    this.ninja.setOrigin(0.5, 0.85);
+    this.ninja = this.add.image(startX, startY, 'ninja_sprite');
+    this.ninja.setOrigin(0.5, 1.0); // 足元基準で天面の上にピタッと接地
     this.ninja.setScale(0.85);
-    this.worldLayer.add(this.ninja);
+    this.ninja.setDepth(100); // 土台天面よりも常に手前に表示
+    this.playerLayer.add(this.ninja);
 
-    this.playerBaseX = curP.x;
-    this.playerBaseY = curP.y;
+    this.playerBaseX = startX;
+    this.playerBaseY = startY;
     this.playerAltitude = 0;
 
     this.chargeGfx = this.add.graphics();
+    this.chargeGfx.setDepth(110);
     this.fxLayer.add(this.chargeGfx);
 
     this.time.addEvent({
@@ -1183,6 +1238,7 @@ class MainScene extends Phaser.Scene {
 
       const shakeOffset = (Math.random() - 0.5) * (this.chargeRatio * 4.5);
       this.ninja.x = this.playerBaseX + shakeOffset;
+      this.ninja.y = this.playerBaseY; // 足元接地を維持
 
       this.drawPowerGauge();
     } else {
@@ -1193,7 +1249,7 @@ class MainScene extends Phaser.Scene {
   drawPowerGauge() {
     this.chargeGfx.clear();
     const nx = this.ninja.x;
-    const ny = this.ninja.y - 82;
+    const ny = this.ninja.y - 110;
 
     this.chargeGfx.lineStyle(7, 0x141838, 0.85);
     this.chargeGfx.beginPath();
@@ -1230,12 +1286,18 @@ class MainScene extends Phaser.Scene {
     const dir = nextPlatform.directionFromPrev;
 
     const jumpDistance = CONFIG.minJumpDist + (CONFIG.maxJumpDist - CONFIG.minJumpDist) * this.chargeRatio;
-    const angleRad = dir === 1 ? -Phaser.Math.DegToRad(30) : -Phaser.Math.DegToRad(150);
 
     const startX = this.playerBaseX;
     const startY = this.playerBaseY;
-    const destX = startX + Math.cos(angleRad) * jumpDistance;
-    const destY = startY + Math.sin(angleRad) * jumpDistance;
+
+    // 現在の忍者足元位置 (startX, startY) から次の土台の天面中心◎ (nextPlatform.surfaceX, nextPlatform.surfaceY) へ向かうベクトル
+    // ※これにより前回の着地点が中心からズレていても、次のジャンプ軌道が奥のフチへズレず天面中心◎のラインを正確に通過する
+    const vecX = nextPlatform.surfaceX - startX;
+    const vecY = nextPlatform.surfaceY - startY;
+    const jumpAngle = Math.atan2(vecY, vecX);
+
+    const destX = startX + Math.cos(jumpAngle) * jumpDistance;
+    const destY = startY + Math.sin(jumpAngle) * jumpDistance;
 
     const jumpDuration = 480 + (jumpDistance / CONFIG.maxJumpDist) * 220;
     const maxPeakHeight = 90 + jumpDistance * 0.42;
@@ -1259,7 +1321,7 @@ class MainScene extends Phaser.Scene {
         this.playerAltitude = Math.sin(Math.PI * p) * maxPeakHeight;
 
         this.ninja.x = this.playerBaseX;
-        this.ninja.y = this.playerBaseY - 38 - this.playerAltitude;
+        this.ninja.y = this.playerBaseY - this.playerAltitude; // 足元基準で地面から飛び上がる
 
         this.playerShadow.x = this.playerBaseX;
         this.playerShadow.y = this.playerBaseY;
@@ -1271,6 +1333,10 @@ class MainScene extends Phaser.Scene {
       },
       onComplete: () => {
         this.ninja.angle = 0;
+        this.ninja.x = destX;
+        this.ninja.y = destY;
+        this.playerShadow.x = destX;
+        this.playerShadow.y = destY;
         this.checkLanding(destX, destY, nextPlatform, curPlatform);
       }
     });
@@ -1288,25 +1354,31 @@ class MainScene extends Phaser.Scene {
      着地判定（Safe / Assist / Perfect / Miss）
      ------------------------------------------------------------------------ */
   checkLanding(landX, landY, targetPlatform, prevPlatform) {
-    const dx = landX - targetPlatform.x;
-    const dy = landY - targetPlatform.y;
+    // 目標土台の天面中心 (surfaceX, surfaceY) に対する着地判定
+    const dx = landX - targetPlatform.surfaceX;
+    const dy = landY - targetPlatform.surfaceY;
     const halfW = targetPlatform.pWidth / 2;
     const halfD = targetPlatform.pDepth / 2;
 
-    const normalizedDistSq = Math.pow(dx / halfW, 2) + Math.pow(dy / halfD, 2);
+    // 円柱は楕円距離、直方体はひし形（アイソメトリック上面）の実形状に合わせた距離比率で判定し、奥のフチ外の空中着地を防止
+    const distRatio = targetPlatform.isCylinder
+      ? Math.hypot(dx / halfW, dy / halfD)
+      : (Math.abs(dx) / halfW + Math.abs(dy) / halfD);
 
-    const prevDx = landX - prevPlatform.x;
-    const prevDy = landY - prevPlatform.y;
+    const prevDx = landX - prevPlatform.surfaceX;
+    const prevDy = landY - prevPlatform.surfaceY;
     const prevHalfW = prevPlatform.pWidth / 2;
     const prevHalfD = prevPlatform.pDepth / 2;
-    const prevNormalizedDistSq = Math.pow(prevDx / prevHalfW, 2) + Math.pow(prevDy / prevHalfD, 2);
+    const prevDistRatio = prevPlatform.isCylinder
+      ? Math.hypot(prevDx / prevHalfW, prevDy / prevHalfD)
+      : (Math.abs(prevDx) / prevHalfW + Math.abs(prevDy) / prevHalfD);
 
-    if (normalizedDistSq <= 1.0) {
-      const isPerfect = normalizedDistSq <= Math.pow(CONFIG.perfectThresholdRatio, 2);
+    if (distRatio <= 0.88) {
+      const isPerfect = distRatio <= CONFIG.perfectThresholdRatio;
       this.handleSuccessfulLanding(targetPlatform, isPerfect, false, landX, landY);
-    } else if (normalizedDistSq <= CONFIG.assistThresholdRatio) {
+    } else if (distRatio <= 1.0) {
       this.handleSuccessfulLanding(targetPlatform, false, true, landX, landY);
-    } else if (prevNormalizedDistSq <= 1.0) {
+    } else if (prevDistRatio <= 1.0) {
       this.handleStayOnPlatform(prevPlatform, landX, landY);
     } else {
       this.handleFall(landX, landY);
@@ -1317,6 +1389,14 @@ class MainScene extends Phaser.Scene {
     this.state = 'LANDING';
     this.currentPlatformIndex++;
 
+    // 着地点（landX, landY）を維持（中心への強制ワープ・吸着は禁止）
+    this.playerBaseX = landX;
+    this.playerBaseY = landY;
+    this.ninja.x = landX;
+    this.ninja.y = landY;
+    this.playerShadow.x = landX;
+    this.playerShadow.y = landY;
+
     this.bouncePlatform(platform);
 
     this.tweens.add({
@@ -1325,7 +1405,10 @@ class MainScene extends Phaser.Scene {
       scaleY: 0.5,
       duration: 90,
       yoyo: true,
-      ease: 'Quad.easeInOut'
+      ease: 'Quad.easeInOut',
+      onComplete: () => {
+        this.ninja.setScale(0.85);
+      }
     });
 
     const t = I18N[currentLang];
@@ -1358,14 +1441,7 @@ class MainScene extends Phaser.Scene {
       this.emitSmoke(landX, landY);
       this.emitSakuraBurst(landX, landY, 12);
       this.showToast(t.assist, '+1', false);
-
-      this.tweens.add({
-        targets: this.ninja,
-        x: platform.x + (landX - platform.x) * 0.7,
-        y: platform.y + (landY - platform.y) * 0.7 - 38,
-        duration: 120,
-        ease: 'Cubic.easeOut'
-      });
+      // 着地点をそのまま維持（吸着tweenは実行しない）
     } else {
       this.combo = 0;
       this.score += 1;
@@ -1399,6 +1475,13 @@ class MainScene extends Phaser.Scene {
   handleStayOnPlatform(platform, landX, landY) {
     this.state = 'LANDING';
     audio.playLand();
+    this.playerBaseX = landX;
+    this.playerBaseY = landY;
+    this.ninja.x = landX;
+    this.ninja.y = landY;
+    this.playerShadow.x = landX;
+    this.playerShadow.y = landY;
+
     this.bouncePlatform(platform);
     this.emitSmoke(landX, landY);
 
@@ -1408,7 +1491,10 @@ class MainScene extends Phaser.Scene {
       scaleY: 0.6,
       duration: 80,
       yoyo: true,
-      ease: 'Quad.easeInOut'
+      ease: 'Quad.easeInOut',
+      onComplete: () => {
+        this.ninja.setScale(0.85);
+      }
     });
 
     this.time.delayedCall(200, () => {
@@ -1449,13 +1535,7 @@ class MainScene extends Phaser.Scene {
   }
 
   panCameraToPlatform(platform) {
-    this.playerBaseX = platform.x;
-    this.playerBaseY = platform.y;
-    this.ninja.x = platform.x;
-    this.ninja.y = platform.y - 38;
-    this.playerShadow.x = platform.x;
-    this.playerShadow.y = platform.y;
-
+    // プレイヤーが着地した座標(playerBaseX, playerBaseY)をそのまま維持し、土台中心へ吸着・ワープさせない
     this.state = 'IDLE';
 
     if (this.platforms.length > 5) {
